@@ -111,10 +111,14 @@ public class ShortsServiceImpl implements ShortsService {
     public void updateScript(Long projectId, Long memberId, Map<String, String> script) {
         getProject(projectId, memberId); // 소유권 확인
         try {
-            // 기존 대본을 히스토리에 저장 (롤백 가능)
-            ProjectDto current = shortsDao.getProjectById(projectId);
-            if (current.getScript() != null && !current.getScript().isEmpty()) {
-                shortsDao.saveScriptHistory(projectId, memberId, current.getScript(), "자동 저장");
+            // 기존 대본을 히스토리에 저장 (롤백 가능) — 테이블 없으면 warn만
+            try {
+                ProjectDto current = shortsDao.getProjectById(projectId);
+                if (current.getScript() != null && !current.getScript().isEmpty()) {
+                    shortsDao.saveScriptHistory(projectId, memberId, current.getScript(), "자동 저장");
+                }
+            } catch (Exception histEx) {
+                log.warn("[updateScript] 히스토리 저장 실패 (계속 진행): {}", histEx.getMessage());
             }
             String scriptJson = objectMapper.writeValueAsString(script);
             shortsDao.updateProjectScript(projectId, scriptJson);
@@ -205,7 +209,11 @@ public class ShortsServiceImpl implements ShortsService {
             String scriptJson = objectMapper.writeValueAsString(script);
             shortsDao.updateProjectGenerated(projectId, htmlUrl, scriptJson, title, "done");
             if (thumbnailUrl != null && !thumbnailUrl.isBlank()) {
-                shortsDao.updateProjectThumbnail(projectId, thumbnailUrl);
+                try {
+                    shortsDao.updateProjectThumbnail(projectId, thumbnailUrl);
+                } catch (Exception thumbEx) {
+                    log.warn("[onGenerateDone] thumbnail_url 업데이트 실패 (컬럼 미생성?): {}", thumbEx.getMessage());
+                }
             }
         } catch (JsonProcessingException e) {
             log.error("대본 직렬화 실패", e);
