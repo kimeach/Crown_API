@@ -252,6 +252,38 @@ public class ShortsRestController {
         return ApiResponse.ok(url);
     }
 
+    // ── PPT 슬라이드 AI 생성 ───────────────────────────────────────
+
+    @PostMapping("/projects/{projectId}/generate-ppt")
+    public ApiResponse<Void> generatePptSlides(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody(required = false) Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        shortsService.generatePptSlides(projectId, memberId, body);
+        return ApiResponse.ok(null);
+    }
+
+    // ── PDF / PPTX 내보내기 ────────────────────────────────────────
+
+    @PostMapping("/projects/{projectId}/export/pdf")
+    public ApiResponse<Map<String, String>> exportPdf(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        String url = shortsService.exportPdf(projectId, memberId);
+        return ApiResponse.ok(Map.of("url", url));
+    }
+
+    @PostMapping("/projects/{projectId}/export/pptx")
+    public ApiResponse<Map<String, String>> exportPptx(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        String url = shortsService.exportPptx(projectId, memberId);
+        return ApiResponse.ok(Map.of("url", url));
+    }
+
     // ── Python 워커 콜백 (내부 전용) ────────────────────────────────
 
     @PutMapping("/internal/generate-callback/{projectId}")

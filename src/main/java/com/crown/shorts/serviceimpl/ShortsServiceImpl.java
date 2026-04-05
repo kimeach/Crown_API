@@ -344,6 +344,53 @@ public class ShortsServiceImpl implements ShortsService {
         }
     }
 
+    // ── PPT 슬라이드 생성 ──────────────────────────────────────────
+
+    @Override
+    public void generatePptSlides(Long projectId, Long memberId, Map<String, Object> options) {
+        ProjectDto project = getProject(projectId, memberId);
+        String callbackUrl = appBaseUrl + "/api/shorts/internal/generate-callback/" + projectId;
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("project_id",   projectId);
+        body.put("callback_url", callbackUrl);
+        body.put("template_id",  options != null ? options.getOrDefault("templateId", "dark_blue") : "dark_blue");
+        if (options != null) body.put("options", options);
+        callWorker("POST", "/generate/ppt", body);
+        shortsDao.updateProjectStatus(projectId, "generating");
+    }
+
+    // ── PDF / PPTX 내보내기 ────────────────────────────────────────
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public String exportPdf(Long projectId, Long memberId) {
+        ProjectDto project = getProject(projectId, memberId);
+        String htmlUrl = project.getHtmlUrl();
+        if (htmlUrl == null || htmlUrl.isBlank()) {
+            throw new RuntimeException("HTML이 없습니다. 먼저 슬라이드를 저장해주세요.");
+        }
+        Map<String, Object> body = Map.of("project_id", projectId, "html_url", htmlUrl);
+        Map<String, Object> res = callWorkerJson("POST", "/export/pdf", body);
+        Object url = res.get("url");
+        if (url == null) throw new RuntimeException("PDF 내보내기 실패");
+        return url.toString();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public String exportPptx(Long projectId, Long memberId) {
+        ProjectDto project = getProject(projectId, memberId);
+        String htmlUrl = project.getHtmlUrl();
+        if (htmlUrl == null || htmlUrl.isBlank()) {
+            throw new RuntimeException("HTML이 없습니다. 먼저 슬라이드를 저장해주세요.");
+        }
+        Map<String, Object> body = Map.of("project_id", projectId, "html_url", htmlUrl);
+        Map<String, Object> res = callWorkerJson("POST", "/export/pptx", body);
+        Object url = res.get("url");
+        if (url == null) throw new RuntimeException("PPTX 내보내기 실패");
+        return url.toString();
+    }
+
     // ── 내부 유틸 ──────────────────────────────────────────────────
 
     private void callWorker(String method, String path, Map<String, Object> body) {

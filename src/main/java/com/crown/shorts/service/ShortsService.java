@@ -69,6 +69,15 @@ public interface ShortsService {
     /** 잡 상태 조회 */
     JobDto getJobStatus(Long jobId);
 
+    /** PPT 슬라이드 AI 생성 */
+    void generatePptSlides(Long projectId, Long memberId, Map<String, Object> options);
+
+    /** HTML → PDF 내보내기 (Python 워커 → S3 → URL 반환) */
+    String exportPdf(Long projectId, Long memberId);
+
+    /** HTML → PPTX 내보내기 (Python 워커 → S3 → URL 반환) */
+    String exportPptx(Long projectId, Long memberId);
+
     /** Python 워커 콜백 — 데이터 수집 완료 */
     void onGenerateDone(Long projectId, String htmlUrl, Map<String, String> script, String title);
 
