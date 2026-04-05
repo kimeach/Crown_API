@@ -1,0 +1,288 @@
+package com.crown.shorts.restcontroller;
+
+import com.crown.common.dto.ApiResponse;
+import com.crown.member.service.MemberService;
+import com.crown.shorts.dto.JobDto;
+import com.crown.shorts.dto.ProjectDto;
+import com.crown.shorts.dto.QuestionDto;
+import com.crown.shorts.service.ShortsService;
+import com.google.firebase.auth.FirebaseToken;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/shorts")
+@RequiredArgsConstructor
+public class ShortsRestController {
+
+    private final ShortsService shortsService;
+    private final MemberService memberService;
+
+    /** 카테고리별 설문 질문 조회 */
+    @GetMapping("/questions")
+    public ApiResponse<List<QuestionDto>> getQuestions(
+            @RequestParam(defaultValue = "stock") String category) {
+        return ApiResponse.ok(shortsService.getQuestions(category));
+    }
+
+    /** 데이터 수집 + 대본 + HTML 생성 요청 */
+    @PostMapping("/projects/generate")
+    public ApiResponse<ProjectDto> generate(
+            @AuthenticationPrincipal FirebaseToken token,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        String category   = (String) body.getOrDefault("category",    "stock");
+        String templateId = (String) body.getOrDefault("template_id", "dark_blue");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> options = (Map<String, Object>) body.get("options");
+        return ApiResponse.ok(shortsService.createAndGenerate(memberId, category, templateId, options));
+    }
+
+    /** TTS 미리 듣기 — 오디오 바이트 스트리밍 */
+    @PostMapping("/tts-preview")
+    public ResponseEntity<byte[]> ttsPreview(
+            @AuthenticationPrincipal FirebaseToken token,
+            @RequestBody Map<String, Object> body) {
+        byte[] audio = shortsService.getTtsPreview(
+                (String) body.getOrDefault("text",  ""),
+                (String) body.getOrDefault("voice", "ko-KR-InJoonNeural"),
+                (String) body.getOrDefault("rate",  "+25%")
+        );
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.valueOf("audio/mpeg").toString())
+                .body(audio);
+    }
+
+    /** 빈 프로젝트 생성 */
+    @PostMapping("/projects/blank")
+    public ApiResponse<ProjectDto> createBlank(@AuthenticationPrincipal FirebaseToken token) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.createBlank(memberId));
+    }
+
+    /** 내 프로젝트 목록 */
+    @GetMapping("/projects")
+    public ApiResponse<List<ProjectDto>> getProjects(@AuthenticationPrincipal FirebaseToken token) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.getMyProjects(memberId));
+    }
+
+    /** 프로젝트 상세 */
+    @GetMapping("/projects/{projectId}")
+    public ApiResponse<ProjectDto> getProject(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.getProject(projectId, memberId));
+    }
+
+    /** HTML 수정 저장 */
+    @PutMapping("/projects/{projectId}/html")
+    public ApiResponse<Void> updateHtml(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, String> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        shortsService.updateHtml(projectId, memberId, body.get("html"));
+        return ApiResponse.ok(null);
+    }
+
+    /** 대본 수정 저장 */
+    @PutMapping("/projects/{projectId}/script")
+    public ApiResponse<Void> updateScript(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, String> script) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        shortsService.updateScript(projectId, memberId, script);
+        return ApiResponse.ok(null);
+    }
+
+    /** 제목 변경 */
+    @PatchMapping("/projects/{projectId}/title")
+    public ApiResponse<Void> updateTitle(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, String> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        shortsService.updateTitle(projectId, memberId, body.get("title"));
+        return ApiResponse.ok(null);
+    }
+
+    /** 프로젝트 삭제 */
+    @DeleteMapping("/projects/{projectId}")
+    public ApiResponse<Void> deleteProject(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        shortsService.deleteProject(projectId, memberId);
+        return ApiResponse.ok(null);
+    }
+
+    /** 영상 생성 시작 */
+    @PostMapping("/projects/{projectId}/render")
+    public ApiResponse<JobDto> render(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody(required = false) Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> renderOptions = (body != null)
+                ? (Map<String, Object>) body.get("render_options") : null;
+        return ApiResponse.ok(shortsService.startRender(projectId, memberId, renderOptions));
+    }
+
+    /** 잡 상태 폴링 */
+    @GetMapping("/jobs/{jobId}/status")
+    public ApiResponse<JobDto> getJobStatus(@PathVariable Long jobId) {
+        return ApiResponse.ok(shortsService.getJobStatus(jobId));
+    }
+
+    // ── AI 기능 ─────────────────────────────────────────────────────
+
+    /** AI 대본 재작성 */
+    @PostMapping("/projects/{projectId}/ai/rewrite")
+    public ApiResponse<String> rewriteScript(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.rewriteScript(
+                projectId, memberId,
+                (String) body.get("text"),
+                (String) body.getOrDefault("style", "news"),
+                (String) body.getOrDefault("instruction", "")
+        ));
+    }
+
+    /** AI 대본 번역 */
+    @PostMapping("/projects/{projectId}/ai/translate")
+    public ApiResponse<String> translateScript(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.translateScript(
+                projectId, memberId,
+                (String) body.get("text"),
+                (String) body.getOrDefault("target_language", "en")
+        ));
+    }
+
+    // ── 자막 ───────────────────────────────────────────────────────
+
+    /** 대본 → SRT 자막 생성 */
+    @PostMapping("/projects/{projectId}/subtitle/script")
+    public ApiResponse<Map<String, Object>> subtitleFromScript(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        @SuppressWarnings("unchecked")
+        Map<String, String> script = (Map<String, String>) body.get("script");
+        return ApiResponse.ok(shortsService.generateSubtitleFromScript(
+                projectId, memberId, script,
+                (String) body.getOrDefault("tts_rate", "+25%")
+        ));
+    }
+
+    /** 영상 → Whisper 자막 생성 */
+    @PostMapping("/projects/{projectId}/subtitle/video")
+    public ApiResponse<Map<String, Object>> subtitleFromVideo(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.generateSubtitleFromVideo(
+                projectId, memberId,
+                (String) body.get("video_url"),
+                (String) body.getOrDefault("language", "ko")
+        ));
+    }
+
+    // ── 목소리 복제 ─────────────────────────────────────────────────
+
+    /** 목소리 복제 생성 (오디오 샘플 업로드) */
+    @PostMapping("/voice/clone")
+    public ApiResponse<Map<String, Object>> cloneVoice(
+            @AuthenticationPrincipal FirebaseToken token,
+            @RequestParam("name") String name,
+            @RequestParam(value = "description", defaultValue = "") String description,
+            @RequestParam("sample") MultipartFile sample) throws IOException {
+        return ApiResponse.ok(shortsService.cloneVoice(
+                name, description, sample.getBytes(), sample.getOriginalFilename()));
+    }
+
+    /** 사용 가능한 목소리 목록 */
+    @GetMapping("/voice/list")
+    public ApiResponse<List<Map<String, Object>>> listVoices(
+            @AuthenticationPrincipal FirebaseToken token) {
+        return ApiResponse.ok(shortsService.listVoices());
+    }
+
+    /** 목소리 복제 삭제 */
+    @DeleteMapping("/voice/{voiceId}")
+    public ApiResponse<Void> deleteVoice(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable String voiceId) {
+        shortsService.deleteVoice(voiceId);
+        return ApiResponse.ok(null);
+    }
+
+    /** 클립 미디어(이미지/영상) S3 업로드 */
+    @PostMapping("/projects/{projectId}/upload-asset")
+    public ApiResponse<String> uploadAsset(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        String url = shortsService.uploadAsset(
+                projectId, memberId,
+                file.getBytes(), file.getOriginalFilename(), file.getContentType());
+        return ApiResponse.ok(url);
+    }
+
+    // ── Python 워커 콜백 (내부 전용) ────────────────────────────────
+
+    @PutMapping("/internal/generate-callback/{projectId}")
+    public void generateCallback(
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        String status = (String) body.get("status");
+        if ("done".equals(status)) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> script = (Map<String, String>) body.get("script");
+            shortsService.onGenerateDone(
+                    projectId,
+                    (String) body.get("html_url"),
+                    script,
+                    (String) body.getOrDefault("title", "")
+            );
+        } else {
+            shortsService.onGenerateError(projectId, (String) body.get("error_message"));
+        }
+    }
+
+    @PutMapping("/internal/render-callback/{jobId}")
+    public void renderCallback(
+            @PathVariable Long jobId,
+            @RequestParam Long projectId,
+            @RequestBody Map<String, Object> body) {
+        String status = (String) body.get("status");
+        if ("done".equals(status)) {
+            shortsService.onRenderDone(jobId, projectId, (String) body.get("video_url"));
+        } else {
+            shortsService.onRenderError(jobId, projectId, (String) body.get("error_message"));
+        }
+    }
+}

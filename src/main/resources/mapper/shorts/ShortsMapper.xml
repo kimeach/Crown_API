@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crown.shorts.mapper.ShortsMapper">
+
+    <resultMap id="projectResultMap" type="ProjectDto">
+        <id property="projectId"  column="project_id"/>
+        <result property="memberId"   column="member_id"/>
+        <result property="category"   column="category"/>
+        <result property="templateId" column="template_id"/>
+        <result property="options"    column="options"
+                typeHandler="com.crown.common.typehandler.JsonObjectTypeHandler"/>
+        <result property="title"      column="title"/>
+        <result property="script"     column="script"
+                typeHandler="com.crown.common.typehandler.JsonMapTypeHandler"/>
+        <result property="htmlUrl"    column="html_url"/>
+        <result property="status"     column="status"/>
+        <result property="videoUrl"   column="video_url"/>
+        <result property="createdAt"  column="created_at"/>
+        <result property="updatedAt"  column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="jobResultMap" type="JobDto">
+        <id property="jobId"         column="job_id"/>
+        <result property="projectId"    column="project_id"/>
+        <result property="status"       column="status"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="startedAt"    column="started_at"/>
+        <result property="finishedAt"   column="finished_at"/>
+    </resultMap>
+
+    <!-- ── 프로젝트 ──────────────────────────────────────────── -->
+
+    <insert id="insertProject" useGeneratedKeys="true" keyProperty="projectId">
+        INSERT INTO sm_project (member_id, category, template_id, options, status)
+        VALUES (#{memberId}, #{category}, #{templateId},
+                #{options,typeHandler=com.crown.common.typehandler.JsonObjectTypeHandler}, 'draft')
+    </insert>
+
+    <select id="selectQuestions" resultType="QuestionDto">
+        SELECT question_id, category, group_name, type, key_name, label, description,
+               options_json AS optionsJson, default_val AS defaultVal,
+               min_val AS minVal, max_val AS maxVal, sort_order AS sortOrder, required
+        FROM sm_question
+        WHERE category = #{category}
+        ORDER BY sort_order
+    </select>
+
+    <select id="selectProjectById" resultMap="projectResultMap">
+        SELECT project_id, member_id, category, template_id, options, title, script,
+               html_url, status, video_url, created_at, updated_at
+        FROM sm_project
+        WHERE project_id = #{projectId}
+    </select>
+
+    <select id="selectProjectsByMemberId" resultMap="projectResultMap">
+        SELECT project_id, member_id, category, template_id, options, title, script,
+               html_url, status, video_url, created_at, updated_at
+        FROM sm_project
+        WHERE member_id = #{memberId}
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateProjectStatus">
+        UPDATE sm_project
+        SET status = #{status}
+        WHERE project_id = #{projectId}
+    </update>
+
+    <update id="updateProjectGenerated">
+        UPDATE sm_project
+        SET html_url = #{htmlUrl},
+            script   = #{script},
+            title    = #{title},
+            status   = #{status}
+        WHERE project_id = #{projectId}
+    </update>
+
+    <update id="updateProjectScript">
+        UPDATE sm_project
+        SET script = #{script}
+        WHERE project_id = #{projectId}
+    </update>
+
+    <update id="updateProjectVideo">
+        UPDATE sm_project
+        SET video_url = #{videoUrl},
+            status    = #{status}
+        WHERE project_id = #{projectId}
+    </update>
+
+    <update id="updateProjectTitle">
+        UPDATE sm_project SET title = #{title} WHERE project_id = #{projectId}
+    </update>
+
+    <delete id="deleteJobsByProjectId">
+        DELETE FROM sm_job WHERE project_id = #{projectId}
+    </delete>
+
+    <delete id="deleteProject">
+        DELETE FROM sm_project WHERE project_id = #{projectId}
+    </delete>
+
+    <!-- ── 잡 ───────────────────────────────────────────────── -->
+
+    <insert id="insertJob" useGeneratedKeys="true" keyProperty="jobId">
+        INSERT INTO sm_job (project_id, status)
+        VALUES (#{projectId}, 'pending')
+    </insert>
+
+    <select id="selectJobById" resultMap="jobResultMap">
+        SELECT job_id, project_id, status, error_message, started_at, finished_at
+        FROM sm_job
+        WHERE job_id = #{jobId}
+    </select>
+
+    <update id="updateJobStatus">
+        UPDATE sm_job
+        SET status        = #{status},
+            error_message = #{errorMessage}
+        WHERE job_id = #{jobId}
+    </update>
+
+    <update id="updateJobStarted">
+        UPDATE sm_job
+        SET status     = 'running',
+            started_at = NOW()
+        WHERE job_id = #{jobId}
+    </update>
+
+    <update id="updateJobFinished">
+        UPDATE sm_job
+        SET status        = #{status},
+            error_message = #{errorMessage},
+            finished_at   = NOW()
+        WHERE job_id = #{jobId}
+    </update>
+
+</mapper>

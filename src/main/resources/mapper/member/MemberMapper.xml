@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.crown.member.mapper.MemberMapper">
+
+    <resultMap id="memberResultMap" type="com.crown.member.dto.MemberDto">
+        <id     property="memberId"   column="member_id"/>
+        <result property="googleId"   column="google_id"/>
+        <result property="nickname"   column="nickname"/>
+        <result property="email"      column="email"/>
+        <result property="profileImg" column="profile_img"/>
+        <result property="score"      column="score"/>
+        <result property="winCount"   column="win_count"/>
+        <result property="loseCount"  column="lose_count"/>
+        <result property="drawCount"  column="draw_count"/>
+    </resultMap>
+
+    <select id="findByGoogleId" resultMap="memberResultMap">
+        SELECT * FROM member WHERE google_id = #{googleId}
+    </select>
+
+    <select id="findById" resultMap="memberResultMap">
+        SELECT * FROM member WHERE member_id = #{memberId}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO member (google_id, nickname, email, profile_img)
+        VALUES (#{googleId}, #{nickname}, #{email}, #{profileImg})
+    </insert>
+
+    <update id="updateProfile">
+        UPDATE member
+        SET nickname    = #{nickname},
+            email       = #{email},
+            profile_img = #{profileImg}
+        WHERE google_id = #{googleId}
+    </update>
+
+    <update id="updateNickname">
+        UPDATE member SET nickname = #{nickname} WHERE member_id = #{memberId}
+    </update>
+
+    <update id="updateProfileImg">
+        UPDATE member SET profile_img = #{profileImg} WHERE member_id = #{memberId}
+    </update>
+
+    <update id="updateScore">
+        UPDATE member
+        SET score      = score + #{scoreDelta},
+            win_count  = win_count  + CASE WHEN #{result} = 'WIN'  THEN 1 ELSE 0 END,
+            lose_count = lose_count + CASE WHEN #{result} = 'LOSE' THEN 1 ELSE 0 END,
+            draw_count = draw_count + CASE WHEN #{result} = 'DRAW' THEN 1 ELSE 0 END
+        WHERE member_id = #{memberId}
+    </update>
+
+    <select id="findRanking" resultMap="memberResultMap">
+        SELECT * FROM member
+        ORDER BY score DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="searchByNickname" resultMap="memberResultMap">
+        SELECT * FROM member
+        WHERE nickname LIKE CONCAT('%', #{nickname}, '%')
+          AND member_id != #{excludeId}
+        ORDER BY score DESC
+        LIMIT 20
+    </select>
+
+</mapper>
