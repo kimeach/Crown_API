@@ -119,6 +119,15 @@ public class ShortsRestController {
         return ApiResponse.ok(null);
     }
 
+    /** 프로젝트 복제 */
+    @PostMapping("/projects/{projectId}/duplicate")
+    public ApiResponse<ProjectDto> duplicateProject(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.duplicateProject(projectId, memberId));
+    }
+
     /** 프로젝트 삭제 */
     @DeleteMapping("/projects/{projectId}")
     public ApiResponse<Void> deleteProject(
@@ -146,6 +155,39 @@ public class ShortsRestController {
     @GetMapping("/jobs/{jobId}/status")
     public ApiResponse<JobDto> getJobStatus(@PathVariable Long jobId) {
         return ApiResponse.ok(shortsService.getJobStatus(jobId));
+    }
+
+    // ── 트렌딩 토픽 ────────────────────────────────────────────────
+
+    /** 트렌딩 토픽 제안 */
+    @GetMapping("/trending/topics")
+    public ApiResponse<List<Map<String, Object>>> getTrendingTopics(
+            @AuthenticationPrincipal FirebaseToken token,
+            @RequestParam(defaultValue = "stock") String category,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.ok(shortsService.getTrendingTopics(category, limit));
+    }
+
+    // ── 대본 히스토리 ───────────────────────────────────────────────
+
+    /** 대본 히스토리 목록 */
+    @GetMapping("/projects/{projectId}/script/history")
+    public ApiResponse<List<com.crown.shorts.dto.ScriptHistoryDto>> getScriptHistory(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.getScriptHistory(projectId, memberId));
+    }
+
+    /** 대본 히스토리 복원 */
+    @PostMapping("/projects/{projectId}/script/history/{historyId}/restore")
+    public ApiResponse<Void> restoreScriptHistory(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @PathVariable Long historyId) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        shortsService.restoreScriptHistory(projectId, memberId, historyId);
+        return ApiResponse.ok(null);
     }
 
     // ── AI 기능 ─────────────────────────────────────────────────────
@@ -176,6 +218,50 @@ public class ShortsRestController {
                 projectId, memberId,
                 (String) body.get("text"),
                 (String) body.getOrDefault("target_language", "en")
+        ));
+    }
+
+    // ── AI 강화 — 해시태그 / SEO / 품질 분석 ─────────────────────────
+
+    /** AI 해시태그 생성 */
+    @PostMapping("/projects/{projectId}/ai/hashtags")
+    public ApiResponse<List<String>> generateHashtags(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.generateHashtags(
+                projectId, memberId,
+                (String) body.getOrDefault("title",  ""),
+                (String) body.getOrDefault("script", ""),
+                body.containsKey("count") ? ((Number) body.get("count")).intValue() : 15
+        ));
+    }
+
+    /** AI SEO 최적화 */
+    @PostMapping("/projects/{projectId}/ai/seo")
+    public ApiResponse<Map<String, Object>> generateSeo(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.generateSeo(
+                projectId, memberId,
+                (String) body.getOrDefault("title",  ""),
+                (String) body.getOrDefault("script", "")
+        ));
+    }
+
+    /** AI 대본 품질 분석 */
+    @PostMapping("/projects/{projectId}/ai/quality")
+    public ApiResponse<Map<String, Object>> analyzeQuality(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.analyzeQuality(
+                projectId, memberId,
+                (String) body.getOrDefault("script", "")
         ));
     }
 
@@ -298,7 +384,8 @@ public class ShortsRestController {
                     projectId,
                     (String) body.get("html_url"),
                     script,
-                    (String) body.getOrDefault("title", "")
+                    (String) body.getOrDefault("title", ""),
+                    (String) body.get("thumbnail_url")
             );
         } else {
             shortsService.onGenerateError(projectId, (String) body.get("error_message"));

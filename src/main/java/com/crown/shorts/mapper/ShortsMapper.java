@@ -3,6 +3,7 @@ package com.crown.shorts.mapper;
 import com.crown.shorts.dto.JobDto;
 import com.crown.shorts.dto.ProjectDto;
 import com.crown.shorts.dto.QuestionDto;
+import com.crown.shorts.dto.ScriptHistoryDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -37,6 +38,15 @@ public interface ShortsMapper {
 
     void updateProjectTitle(@Param("projectId") Long projectId,
                             @Param("title") String title);
+
+    void updateProjectThumbnail(@Param("projectId") Long projectId,
+                                @Param("thumbnailUrl") String thumbnailUrl);
+
+    void insertScriptHistory(ScriptHistoryDto dto);
+
+    List<ScriptHistoryDto> selectScriptHistory(@Param("projectId") Long projectId);
+
+    ScriptHistoryDto selectScriptHistoryById(@Param("historyId") Long historyId);
 
     void deleteJobsByProjectId(@Param("projectId") Long projectId);
 

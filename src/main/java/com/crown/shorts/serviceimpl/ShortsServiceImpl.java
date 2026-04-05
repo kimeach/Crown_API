@@ -4,6 +4,7 @@ import com.crown.shorts.dao.ShortsDao;
 import com.crown.shorts.dto.JobDto;
 import com.crown.shorts.dto.ProjectDto;
 import com.crown.shorts.dto.QuestionDto;
+import com.crown.shorts.dto.ScriptHistoryDto;
 import com.crown.shorts.service.ShortsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -110,6 +111,11 @@ public class ShortsServiceImpl implements ShortsService {
     public void updateScript(Long projectId, Long memberId, Map<String, String> script) {
         getProject(projectId, memberId); // 소유권 확인
         try {
+            // 기존 대본을 히스토리에 저장 (롤백 가능)
+            ProjectDto current = shortsDao.getProjectById(projectId);
+            if (current.getScript() != null && !current.getScript().isEmpty()) {
+                shortsDao.saveScriptHistory(projectId, memberId, current.getScript(), "자동 저장");
+            }
             String scriptJson = objectMapper.writeValueAsString(script);
             shortsDao.updateProjectScript(projectId, scriptJson);
         } catch (JsonProcessingException e) {
@@ -138,6 +144,14 @@ public class ShortsServiceImpl implements ShortsService {
     }
 
     // ── 프로젝트 삭제 ──────────────────────────────────────────
+
+    // ── 프로젝트 복제 ──────────────────────────────────────────
+
+    @Override
+    public ProjectDto duplicateProject(Long projectId, Long memberId) {
+        getProject(projectId, memberId); // 소유권 확인
+        return shortsDao.duplicateProject(projectId, memberId);
+    }
 
     @Override
     public void deleteProject(Long projectId, Long memberId) {
@@ -186,10 +200,13 @@ public class ShortsServiceImpl implements ShortsService {
     // ── 워커 콜백 ──────────────────────────────────────────────────
 
     @Override
-    public void onGenerateDone(Long projectId, String htmlUrl, Map<String, String> script, String title) {
+    public void onGenerateDone(Long projectId, String htmlUrl, Map<String, String> script, String title, String thumbnailUrl) {
         try {
             String scriptJson = objectMapper.writeValueAsString(script);
             shortsDao.updateProjectGenerated(projectId, htmlUrl, scriptJson, title, "done");
+            if (thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+                shortsDao.updateProjectThumbnail(projectId, thumbnailUrl);
+            }
         } catch (JsonProcessingException e) {
             log.error("대본 직렬화 실패", e);
             shortsDao.updateProjectStatus(projectId, "error");
@@ -238,6 +255,93 @@ public class ShortsServiceImpl implements ShortsService {
         Map<String, Object> res = callWorkerJson("POST", "/ai/translate", body);
         Object data = res.get("data");
         return data != null ? data.toString() : "";
+    }
+
+    // ── 트렌딩 토픽 ────────────────────────────────────────────────────
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getTrendingTopics(String category, int limit) {
+        String path = "/trending/topics?category=" + (category != null ? category : "stock")
+                + "&limit=" + (limit > 0 ? limit : 10);
+        try {
+            Map<String, Object> res = callWorkerJson("GET", path, null);
+            Object data = res.get("data");
+            if (data instanceof List) return (List<Map<String, Object>>) data;
+        } catch (Exception e) {
+            log.warn("트렌딩 토픽 조회 실패: {}", e.getMessage());
+        }
+        return new java.util.ArrayList<>();
+    }
+
+    // ── 대본 히스토리 ──────────────────────────────────────────────────
+
+    @Override
+    public ScriptHistoryDto saveScriptHistory(Long projectId, Long memberId, Map<String, String> script, String note) {
+        getProject(projectId, memberId);
+        return shortsDao.saveScriptHistory(projectId, memberId, script, note);
+    }
+
+    @Override
+    public List<ScriptHistoryDto> getScriptHistory(Long projectId, Long memberId) {
+        getProject(projectId, memberId);
+        return shortsDao.getScriptHistory(projectId);
+    }
+
+    @Override
+    public void restoreScriptHistory(Long projectId, Long memberId, Long historyId) {
+        getProject(projectId, memberId);
+        ScriptHistoryDto history = shortsDao.getScriptHistoryById(historyId);
+        if (history == null || !history.getProjectId().equals(projectId)) {
+            throw new IllegalArgumentException("히스토리를 찾을 수 없습니다.");
+        }
+        try {
+            String scriptJson = objectMapper.writeValueAsString(history.getScript());
+            shortsDao.updateProjectScript(projectId, scriptJson);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("대본 직렬화 실패", e);
+        }
+    }
+
+    // ── AI 강화 — 해시태그 / SEO / 품질 분석 ─────────────────────────
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<String> generateHashtags(Long projectId, Long memberId, String title, String script, int count) {
+        getProject(projectId, memberId);
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("title",  title  != null ? title  : "");
+        body.put("script", script != null ? script : "");
+        body.put("count",  count > 0 ? count : 15);
+        Map<String, Object> res = callWorkerJson("POST", "/ai/hashtags", body);
+        Object data = res.get("data");
+        if (data instanceof List) return (List<String>) data;
+        return new java.util.ArrayList<>();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> generateSeo(Long projectId, Long memberId, String title, String script) {
+        getProject(projectId, memberId);
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("title",  title  != null ? title  : "");
+        body.put("script", script != null ? script : "");
+        Map<String, Object> res = callWorkerJson("POST", "/ai/seo", body);
+        Object data = res.get("data");
+        if (data instanceof Map) return (Map<String, Object>) data;
+        return new java.util.HashMap<>();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> analyzeQuality(Long projectId, Long memberId, String script) {
+        getProject(projectId, memberId);
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("script", script != null ? script : "");
+        Map<String, Object> res = callWorkerJson("POST", "/ai/quality", body);
+        Object data = res.get("data");
+        if (data instanceof Map) return (Map<String, Object>) data;
+        return new java.util.HashMap<>();
     }
 
     // ── 자막 생성 ───────────────────────────────────────────────────

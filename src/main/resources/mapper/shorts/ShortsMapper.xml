@@ -13,8 +13,9 @@
         <result property="title"      column="title"/>
         <result property="script"     column="script"
                 typeHandler="com.crown.common.typehandler.JsonMapTypeHandler"/>
-        <result property="htmlUrl"    column="html_url"/>
-        <result property="status"     column="status"/>
+        <result property="htmlUrl"       column="html_url"/>
+        <result property="thumbnailUrl"  column="thumbnail_url"/>
+        <result property="status"        column="status"/>
         <result property="videoUrl"   column="video_url"/>
         <result property="createdAt"  column="created_at"/>
         <result property="updatedAt"  column="updated_at"/>
@@ -48,14 +49,14 @@
 
     <select id="selectProjectById" resultMap="projectResultMap">
         SELECT project_id, member_id, category, template_id, options, title, script,
-               html_url, status, video_url, created_at, updated_at
+               html_url, thumbnail_url, status, video_url, created_at, updated_at
         FROM sm_project
         WHERE project_id = #{projectId}
     </select>
 
     <select id="selectProjectsByMemberId" resultMap="projectResultMap">
         SELECT project_id, member_id, category, template_id, options, title, script,
-               html_url, status, video_url, created_at, updated_at
+               html_url, thumbnail_url, status, video_url, created_at, updated_at
         FROM sm_project
         WHERE member_id = #{memberId}
         ORDER BY created_at DESC
@@ -93,6 +94,10 @@
         UPDATE sm_project SET title = #{title} WHERE project_id = #{projectId}
     </update>
 
+    <update id="updateProjectThumbnail">
+        UPDATE sm_project SET thumbnail_url = #{thumbnailUrl} WHERE project_id = #{projectId}
+    </update>
+
     <delete id="deleteJobsByProjectId">
         DELETE FROM sm_job WHERE project_id = #{projectId}
     </delete>
@@ -100,6 +105,40 @@
     <delete id="deleteProject">
         DELETE FROM sm_project WHERE project_id = #{projectId}
     </delete>
+
+
+    <!-- ── 대본 히스토리 ──────────────────────────────────────── -->
+
+    <resultMap id="historyResultMap" type="ScriptHistoryDto">
+        <id property="historyId"  column="history_id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="memberId"  column="member_id"/>
+        <result property="script"    column="script"
+                typeHandler="com.crown.common.typehandler.JsonMapTypeHandler"/>
+        <result property="note"      column="note"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insertScriptHistory" useGeneratedKeys="true" keyProperty="historyId">
+        INSERT INTO sm_script_history (project_id, member_id, script, note)
+        VALUES (#{projectId}, #{memberId},
+                #{script,typeHandler=com.crown.common.typehandler.JsonMapTypeHandler},
+                #{note})
+    </insert>
+
+    <select id="selectScriptHistory" resultMap="historyResultMap">
+        SELECT history_id, project_id, member_id, script, note, created_at
+        FROM sm_script_history
+        WHERE project_id = #{projectId}
+        ORDER BY created_at DESC
+        LIMIT 50
+    </select>
+
+    <select id="selectScriptHistoryById" resultMap="historyResultMap">
+        SELECT history_id, project_id, member_id, script, note, created_at
+        FROM sm_script_history
+        WHERE history_id = #{historyId}
+    </select>
 
     <!-- ── 잡 ───────────────────────────────────────────────── -->
 

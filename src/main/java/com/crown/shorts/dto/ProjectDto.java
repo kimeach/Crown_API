@@ -14,6 +14,7 @@ public class ProjectDto {
     private String templateId;
     private java.util.Map<String, Object> options;
     private String htmlUrl;
+    private String thumbnailUrl;
     private String status;               // draft | generating | done | error
     private String videoUrl;
     private LocalDateTime createdAt;
