@@ -34,8 +34,8 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
                                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
                         );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (Exception ignored) {
-                // 유효하지 않은 토큰 → 인증 없이 진행 (접근 제어는 SecurityConfig에서 처리)
+            } catch (Exception e) {
+                logger.warn("Firebase token verification failed: " + e.getMessage());
             }
         }
         filterChain.doFilter(request, response);
