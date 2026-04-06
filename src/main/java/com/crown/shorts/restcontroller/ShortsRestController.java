@@ -305,6 +305,20 @@ public class ShortsRestController {
         ));
     }
 
+    /** SRT 자막 다국어 번역 */
+    @PostMapping("/projects/{projectId}/subtitle/translate")
+    public ApiResponse<Map<String, Object>> translateSubtitle(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.translateSubtitle(
+                projectId, memberId,
+                (String) body.get("srt"),
+                (String) body.getOrDefault("target_language", "en")
+        ));
+    }
+
     // ── 목소리 복제 ─────────────────────────────────────────────────
 
     /** 목소리 복제 생성 (오디오 샘플 업로드) */

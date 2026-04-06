@@ -414,6 +414,18 @@ public class ShortsServiceImpl implements ShortsService {
         return data != null ? data : new java.util.HashMap<>();
     }
 
+    public Map<String, Object> translateSubtitle(Long projectId, Long memberId, String srt, String targetLanguage) {
+        getProject(projectId, memberId);
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("project_id",       projectId);
+        body.put("srt",              srt);
+        body.put("target_language",  targetLanguage != null ? targetLanguage : "en");
+        Map<String, Object> res = callWorkerJson("POST", "/subtitle/translate", body);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) res.get("data");
+        return data != null ? data : new java.util.HashMap<>();
+    }
+
     // ── 목소리 복제 ─────────────────────────────────────────────────
 
     @Override
