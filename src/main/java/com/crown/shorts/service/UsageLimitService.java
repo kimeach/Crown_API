@@ -1,14 +1,10 @@
 package com.crown.shorts.service;
 
+import com.crown.shorts.mapper.UsageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Insert;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.YearMonth;
 
 @Slf4j
@@ -43,19 +39,5 @@ public class UsageLimitService {
         YearMonth now = YearMonth.now();
         return usageMapper.countThisMonth(memberId, action,
                 now.atDay(1).toString(), now.atEndOfMonth().toString());
-    }
-
-    @Mapper
-    public interface UsageMapper {
-        @Select("SELECT COUNT(*) FROM sm_usage_log " +
-                "WHERE member_id = #{memberId} AND action = #{action} " +
-                "AND DATE(created_at) BETWEEN #{from} AND #{to}")
-        int countThisMonth(@Param("memberId") Long memberId,
-                           @Param("action") String action,
-                           @Param("from") String from,
-                           @Param("to") String to);
-
-        @Insert("INSERT INTO sm_usage_log (member_id, action) VALUES (#{memberId}, #{action})")
-        void insert(@Param("memberId") Long memberId, @Param("action") String action);
     }
 }

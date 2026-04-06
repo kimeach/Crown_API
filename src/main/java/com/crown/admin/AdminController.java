@@ -1,5 +1,6 @@
 package com.crown.admin;
 
+import com.crown.common.service.FcmService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +24,7 @@ public class AdminController {
 
     private final JdbcTemplate jdbcTemplate;
     private final RestTemplate restTemplate;
+    private final FcmService   fcmService;
 
     @Value("${worker.url}")
     private String workerUrl;
@@ -98,9 +100,17 @@ public class AdminController {
     @GetMapping("/users/{memberId}")
     public Map<String, Object> getUserDetail(@PathVariable Long memberId) {
         Map<String, Object> user = jdbcTemplate.queryForMap(
-            "SELECT * FROM member WHERE member_id = ?", memberId);
+            "SELECT m.member_id, m.nickname, m.email, m.profile_img, m.created_at, " +
+            "  (SELECT MAX(created_at) FROM access_log WHERE member_id = m.member_id) AS last_active, " +
+            "  (SELECT COUNT(*) FROM sm_project WHERE member_id = m.member_id) AS project_count, " +
+            "  (SELECT COUNT(*) FROM sm_project WHERE member_id = m.member_id AND status = 'done') AS done_count " +
+            "FROM member m WHERE m.member_id = ?", memberId);
+
         List<Map<String, Object>> projects = jdbcTemplate.queryForList(
-            "SELECT project_id, title, status, created_at FROM sm_project WHERE member_id = ? ORDER BY created_at DESC LIMIT 20",
+            "SELECT p.project_id, p.title, p.status, p.category, p.created_at, " +
+            "  p.video_url IS NOT NULL AS has_video, m.nickname AS member_name " +
+            "FROM sm_project p JOIN member m ON p.member_id = m.member_id " +
+            "WHERE p.member_id = ? ORDER BY p.created_at DESC LIMIT 50",
             memberId);
         user.put("projects", projects);
         return user;
@@ -136,9 +146,9 @@ public class AdminController {
         } catch (Exception e) {
             log.warn("Admin S3 삭제 실패 (DB 삭제 계속): {}", e.getMessage());
         }
-        jdbcTemplate.update("DELETE FROM sm_job     WHERE project_id = ?", projectId);
+        jdbcTemplate.update("DELETE FROM sm_job          WHERE project_id = ?", projectId);
         jdbcTemplate.update("DELETE FROM sm_script_history WHERE project_id = ?", projectId);
-        jdbcTemplate.update("DELETE FROM sm_project WHERE project_id = ?", projectId);
+        jdbcTemplate.update("DELETE FROM sm_project       WHERE project_id = ?", projectId);
         return Map.of("deleted", true, "projectId", projectId);
     }
 
@@ -215,5 +225,48 @@ public class AdminController {
         }
 
         return result;
+    }
+
+    // ── 공지 발송 ────────────────────────────────────────────────────
+
+    /**
+     * 전체 사용자에게 FCM 공지 발송 후 이력 저장
+     * POST /api/admin/announce
+     * Body: { "title": "...", "message": "..." }
+     */
+    @PostMapping("/announce")
+    public Map<String, Object> sendAnnouncement(@RequestBody Map<String, String> body) {
+        String title   = body.getOrDefault("title", "").trim();
+        String message = body.getOrDefault("message", "").trim();
+
+        if (title.isEmpty() || message.isEmpty()) {
+            throw new IllegalArgumentException("title과 message는 필수입니다.");
+        }
+
+        // FCM 토큰이 등록된 회원 조회
+        List<String> tokens = jdbcTemplate.queryForList(
+            "SELECT fcm_token FROM member WHERE fcm_token IS NOT NULL AND fcm_token != ''",
+            String.class);
+
+        int sentCount = fcmService.sendToAll(title, message, tokens);
+
+        // 발송 이력 저장
+        jdbcTemplate.update(
+            "INSERT INTO announcement (title, message, sent_count) VALUES (?, ?, ?)",
+            title, message, tokens.size());
+
+        log.info("[Admin] 공지 발송 완료 — 토큰 {}개 중 {} 성공, 제목: {}", tokens.size(), sentCount, title);
+        return Map.of("sent", tokens.size(), "delivered", sentCount);
+    }
+
+    /**
+     * 공지 발송 이력 조회
+     * GET /api/admin/announcements
+     */
+    @GetMapping("/announcements")
+    public List<Map<String, Object>> getAnnouncements() {
+        return jdbcTemplate.queryForList(
+            "SELECT id, title, LEFT(message, 200) AS message, sent_count, created_at " +
+            "FROM announcement ORDER BY id DESC LIMIT 20");
     }
 }

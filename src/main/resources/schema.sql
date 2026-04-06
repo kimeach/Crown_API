@@ -72,3 +72,12 @@ CREATE TABLE IF NOT EXISTS sm_job (
     finished_at     DATETIME,
     FOREIGN KEY (project_id) REFERENCES sm_project(project_id)
 );
+
+-- 공지사항 (어드민 → 전체 사용자 FCM 발송 이력)
+CREATE TABLE IF NOT EXISTS announcement (
+    id          BIGINT          AUTO_INCREMENT PRIMARY KEY,
+    title       VARCHAR(200)    NOT NULL,
+    message     TEXT            NOT NULL,
+    sent_count  INT             NOT NULL DEFAULT 0,
+    created_at  DATETIME        NOT NULL DEFAULT NOW()
+);
