@@ -41,6 +41,7 @@ jobs:
             kill $(cat /root/app/crown_api.pid) 2>/dev/null || true
             sleep 2
             cd /root/app
+            SLACK_ERRORS_WEBHOOK="${{ secrets.SLACK_ERRORS_WEBHOOK }}" \
             nohup java -Xms128m -Xmx300m -jar Crown_API-0.0.1-SNAPSHOT.jar \
               --spring.profiles.active=prod > crown_api.log 2>&1 &
             echo $! > crown_api.pid
