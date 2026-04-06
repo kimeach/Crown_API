@@ -76,6 +76,9 @@ public interface ShortsService {
     /** 영상 → Whisper 자막 생성 */
     Map<String, Object> generateSubtitleFromVideo(Long projectId, Long memberId, String videoUrl, String language);
 
+    /** SRT 자막 다국어 번역 */
+    Map<String, Object> translateSubtitle(Long projectId, Long memberId, String srt, String targetLanguage);
+
     /** 목소리 복제 생성 */
     Map<String, Object> cloneVoice(String name, String description, byte[] sampleBytes, String filename);
 
