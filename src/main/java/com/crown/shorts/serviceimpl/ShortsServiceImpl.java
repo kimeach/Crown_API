@@ -8,7 +8,9 @@ import com.crown.shorts.dto.JobDto;
 import com.crown.shorts.dto.ProjectDto;
 import com.crown.shorts.dto.QuestionDto;
 import com.crown.shorts.dto.ScriptHistoryDto;
+import com.crown.shorts.dto.SfxItemDto;
 import com.crown.shorts.service.ShortsService;
+import org.springframework.jdbc.core.JdbcTemplate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,7 @@ public class ShortsServiceImpl implements ShortsService {
     private final MemberService memberService;
     private final UsageLimitService usageLimitService;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${worker.url}")
     private String workerUrl;
@@ -66,10 +69,27 @@ public class ShortsServiceImpl implements ShortsService {
         body.put("callback_url", callbackUrl);
         body.put("template_id",  templateId);
         body.put("category",     category);
-        if (options != null && !options.isEmpty()) {
-            body.put("options", options);
+
+        Map<String, Object> mergedOptions = options != null ? new java.util.HashMap<>(options) : new java.util.HashMap<>();
+
+        // PPT 템플릿: DB에서 config 조회 후 options에 포함
+        if ("ppt".equals(category) && templateId != null && templateId.matches("\\d+")) {
+            try {
+                Map<String, Object> tpl = jdbcTemplate.queryForMap(
+                    "SELECT config FROM sm_template WHERE id=? AND is_active=1", Integer.parseInt(templateId));
+                if (tpl.get("config") != null) {
+                    mergedOptions.put("template_config", tpl.get("config").toString());
+                }
+            } catch (Exception e) {
+                log.warn("템플릿 조회 실패 id={}: {}", templateId, e.getMessage());
+            }
         }
-        callWorker("POST", "/generate/stock", body);
+
+        if (!mergedOptions.isEmpty()) body.put("options", mergedOptions);
+
+        // category에 따라 워커 엔드포인트 분기
+        String workerEndpoint = "ppt".equals(category) ? "/generate/ppt" : "/generate/stock";
+        callWorker("POST", workerEndpoint, body);
         shortsDao.updateProjectStatus(project.getProjectId(), "generating");
         project.setStatus("generating");
         return project;
@@ -248,8 +268,15 @@ public class ShortsServiceImpl implements ShortsService {
     }
 
     @Override
-    public void onRenderDone(Long jobId, Long projectId, String videoUrl) {
+    public void onRenderDone(Long jobId, Long projectId, String videoUrl, String thumbnailUrl) {
         shortsDao.updateProjectVideo(projectId, videoUrl, "done");
+        if (thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+            try {
+                shortsDao.updateProjectThumbnail(projectId, thumbnailUrl);
+            } catch (Exception e) {
+                log.warn("[onRenderDone] thumbnail_url 업데이트 실패 (무시): {}", e.getMessage());
+            }
+        }
         shortsDao.updateJobFinished(jobId, "done", null);
         // FCM 푸시 알림
         sendFcmToProjectOwner(projectId, "영상 생성 완료 🎬", "영상이 완성되었습니다. 지금 확인해보세요!");
@@ -314,6 +341,87 @@ public class ShortsServiceImpl implements ShortsService {
             log.warn("트렌딩 토픽 조회 실패: {}", e.getMessage());
         }
         return new java.util.ArrayList<>();
+    }
+
+    // ── 효과음 라이브러리 ──────────────────────────────────────────────
+
+    private static final List<SfxItemDto> SFX_LIBRARY = List.of(
+        new SfxItemDto(1,  "또잉! 등장음",                      0.21, List.of("시선집중","카툰","게임"),         null),
+        new SfxItemDto(2,  "북소리 (두둥)",                     1.70, List.of("소리효과","장면전환","트랜지션"),  null),
+        new SfxItemDto(3,  "다음으로 넘어가는 맑은 소리...",    2.06, List.of("소리효과","시선집중","장면전환"),  null),
+        new SfxItemDto(4,  "쫄래쫄래 걸어가는 소리(뚝뚝)",     2.11, List.of("소리효과","게임","전자음"),        null),
+        new SfxItemDto(5,  "집중용 띵 2",                       3.63, List.of("소리효과","장면전환","트랜지션"),  null),
+        new SfxItemDto(6,  "깨달음을 얻었을 때(뽀봉)",          1.80, List.of("소리효과","카툰","게임"),          null),
+        new SfxItemDto(7,  "가볍게 휘두르는 소리",              0.63, List.of("소리효과","장면전환","트랜지션"),  null),
+        new SfxItemDto(8,  "아이들 환호 소리(yeah)",            2.56, List.of("소리효과","분위기","긍정"),        null),
+        new SfxItemDto(9,  "긍정적 마법 사용",                  1.45, List.of("소리효과","카툰","긍정"),          null),
+        new SfxItemDto(10, "카운트다운 비프",                   3.00, List.of("전자음","시선집중","긴장"),         null),
+        new SfxItemDto(11, "짧은 성공음",                       0.80, List.of("긍정","게임","알림"),              null),
+        new SfxItemDto(12, "실패·오류음",                       0.90, List.of("소리효과","게임","경고"),          null),
+        new SfxItemDto(13, "알림 팝업",                         0.40, List.of("알림","전자음","시선집중"),         null),
+        new SfxItemDto(14, "드라마틱 타악기",                   2.20, List.of("장면전환","긴장","드라마틱"),       null),
+        new SfxItemDto(15, "경쾌한 클릭",                       0.15, List.of("전자음","UI","클릭"),              null),
+        new SfxItemDto(16, "부드러운 전환음",                   1.10, List.of("장면전환","분위기","트랜지션"),     null),
+        new SfxItemDto(17, "두근두근 심장 소리",                2.40, List.of("긴장","드라마틱","분위기"),         null),
+        new SfxItemDto(18, "번개 효과",                         0.55, List.of("소리효과","게임","전자음"),         null),
+        new SfxItemDto(19, "봄바람 휘파람",                     3.10, List.of("분위기","자연","배경"),             null),
+        new SfxItemDto(20, "군중 박수",                         4.00, List.of("긍정","분위기","배경"),             null),
+        new SfxItemDto(21, "타이핑 소리",                       1.20, List.of("전자음","UI","분위기"),             null),
+        new SfxItemDto(22, "줌인 효과음",                       0.35, List.of("시선집중","전자음","게임"),         null),
+        new SfxItemDto(23, "로켓 발사",                         1.90, List.of("소리효과","긍정","긴장"),           null),
+        new SfxItemDto(24, "동전 획득",                         0.70, List.of("게임","긍정","카툰"),               null),
+        new SfxItemDto(25, "경고 사이렌",                       2.80, List.of("경고","긴장","드라마틱"),           null),
+        new SfxItemDto(26, "새 지저귀는 소리",                  3.50, List.of("자연","분위기","배경"),             null),
+        new SfxItemDto(27, "전화 수신음",                       2.00, List.of("알림","소리효과","UI"),             null),
+        new SfxItemDto(28, "문 삐걱 소리",                      1.30, List.of("소리효과","분위기","공포"),         null),
+        new SfxItemDto(29, "폭발음 (작은)",                     1.00, List.of("소리효과","게임","드라마틱"),        null),
+        new SfxItemDto(30, "레벨업 효과음",                     1.50, List.of("게임","긍정","전자음"),             null)
+    );
+
+    @Override
+    public List<SfxItemDto> getSfxLibrary(String q, String tab) {
+        // DB 조회 (sm_sfx 테이블). 비어있으면 하드코딩 fallback
+        try {
+            String sql = "SELECT id, name, tags, duration, s3_url FROM sm_sfx";
+            Object[] params;
+            if (q != null && !q.isBlank()) {
+                sql += " WHERE name LIKE ? OR tags LIKE ?";
+                params = new Object[]{"%" + q + "%", "%" + q + "%"};
+            } else {
+                params = new Object[]{};
+            }
+            sql += " ORDER BY id DESC";
+            List<SfxItemDto> rows = jdbcTemplate.query(sql, params, (rs, i) -> {
+                String tagsStr = rs.getString("tags");
+                List<String> tags = new java.util.ArrayList<>();
+                if (tagsStr != null && !tagsStr.isBlank()) {
+                    for (String t : tagsStr.replaceAll("[\\[\\]\"]", "").split(",")) {
+                        String trimmed = t.trim();
+                        if (!trimmed.isEmpty()) tags.add(trimmed);
+                    }
+                }
+                return new SfxItemDto(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getDouble("duration"),
+                    tags,
+                    rs.getString("s3_url")
+                );
+            });
+            if (!rows.isEmpty()) return rows;
+        } catch (Exception e) {
+            log.warn("sm_sfx DB 조회 실패, fallback 사용: {}", e.getMessage());
+        }
+        // fallback: 하드코딩 데이터
+        java.util.stream.Stream<SfxItemDto> stream = SFX_LIBRARY.stream();
+        if (q != null && !q.isBlank()) {
+            String keyword = q.trim().toLowerCase();
+            stream = stream.filter(item ->
+                item.getName().toLowerCase().contains(keyword) ||
+                item.getTags().stream().anyMatch(tag -> tag.toLowerCase().contains(keyword))
+            );
+        }
+        return stream.collect(java.util.stream.Collectors.toList());
     }
 
     // ── 대본 히스토리 ──────────────────────────────────────────────────

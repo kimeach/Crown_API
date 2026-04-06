@@ -5,6 +5,7 @@ import com.crown.member.service.MemberService;
 import com.crown.shorts.dto.JobDto;
 import com.crown.shorts.dto.ProjectDto;
 import com.crown.shorts.dto.QuestionDto;
+import com.crown.shorts.dto.SfxItemDto;
 import com.crown.shorts.service.ProgressService;
 import com.crown.shorts.service.ShortsService;
 import com.crown.shorts.service.UsageLimitService;
@@ -38,6 +39,14 @@ public class ShortsRestController {
     public ApiResponse<List<QuestionDto>> getQuestions(
             @RequestParam(defaultValue = "stock") String category) {
         return ApiResponse.ok(shortsService.getQuestions(category));
+    }
+
+    /** 무료 효과음 라이브러리 조회 */
+    @GetMapping("/sfx")
+    public ApiResponse<List<SfxItemDto>> getSfxLibrary(
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "all") String tab) {
+        return ApiResponse.ok(shortsService.getSfxLibrary(q, tab));
     }
 
     /** 데이터 수집 + 대본 + HTML 생성 요청 */
@@ -422,7 +431,7 @@ public class ShortsRestController {
             @RequestBody Map<String, Object> body) {
         String status = (String) body.get("status");
         if ("done".equals(status)) {
-            shortsService.onRenderDone(jobId, projectId, (String) body.get("video_url"));
+            shortsService.onRenderDone(jobId, projectId, (String) body.get("video_url"), (String) body.get("thumbnail_url"));
         } else {
             shortsService.onRenderError(jobId, projectId, (String) body.get("error_message"));
         }

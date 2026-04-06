@@ -4,6 +4,7 @@ import com.crown.shorts.dto.JobDto;
 import com.crown.shorts.dto.ProjectDto;
 import com.crown.shorts.dto.QuestionDto;
 import com.crown.shorts.dto.ScriptHistoryDto;
+import com.crown.shorts.dto.SfxItemDto;
 
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,9 @@ public interface ShortsService {
 
     /** 카테고리별 설문 질문 조회 */
     List<QuestionDto> getQuestions(String category);
+
+    /** 무료 효과음 라이브러리 조회 */
+    List<SfxItemDto> getSfxLibrary(String q, String tab);
 
     /** 새 프로젝트 생성 후 Python 워커에 데이터 수집 요청 */
     ProjectDto createAndGenerate(Long memberId, String category, String templateId, Map<String, Object> options);
@@ -113,7 +117,7 @@ public interface ShortsService {
     void onGenerateError(Long projectId, String errorMessage);
 
     /** Python 워커 콜백 — 영상 생성 완료 */
-    void onRenderDone(Long jobId, Long projectId, String videoUrl);
+    void onRenderDone(Long jobId, Long projectId, String videoUrl, String thumbnailUrl);
 
     /** Python 워커 콜백 — 영상 생성 실패 */
     void onRenderError(Long jobId, Long projectId, String errorMessage);
