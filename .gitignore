@@ -10,6 +10,8 @@ build/
 src/main/resources/firebase-service-account.json
 src/main/resources/firebase-service-account2.json
 src/main/resources/application.yml
+.env
+.env.example
 
 # Claude
 .claude/
