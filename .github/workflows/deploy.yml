@@ -1,0 +1,58 @@
+name: Deploy Crown API (Java)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build JAR
+        run: ./gradlew build -x test
+
+      - name: Copy JAR to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: build/libs/Crown_API-0.0.1-SNAPSHOT.jar
+          target: /root/app/
+          strip_components: 2
+
+      - name: Restart server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            kill $(cat /root/app/crown_api.pid) 2>/dev/null || true
+            sleep 2
+            cd /root/app
+            nohup java -Xms128m -Xmx300m -jar Crown_API-0.0.1-SNAPSHOT.jar \
+              --spring.profiles.active=prod > crown_api.log 2>&1 &
+            echo $! > crown_api.pid
+            echo "Java API 재시작 완료 PID:$!"
+
+      - name: Slack 알림
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then
+            MSG="[배포 완료] Crown API (Java)\n시간: $(date '+%Y-%m-%d %H:%M') KST\n커밋: ${{ github.event.head_commit.message }}"
+          else
+            MSG="[배포 실패] Crown API (Java)\n시간: $(date '+%Y-%m-%d %H:%M') KST\n커밋: ${{ github.event.head_commit.message }}"
+          fi
+          curl -s -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"$MSG\"}" \
+            ${{ secrets.SLACK_DEPLOY_WEBHOOK }}
