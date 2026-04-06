@@ -1,9 +1,7 @@
 # Gradle
 .gradle/
 build/
-# gradle/ → Actions 빌드에 필요
-# gradlew → Actions 빌드에 필요
-# gradlew.bat → Actions 빌드에 필요
+# gradlew, gradle/, gradle-wrapper.jar → Actions 빌드에 필요하므로 제외하지 않음
 
 # IDE
 .idea/
