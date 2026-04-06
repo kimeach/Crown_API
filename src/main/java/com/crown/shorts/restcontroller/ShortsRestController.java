@@ -65,9 +65,13 @@ public class ShortsRestController {
 
     /** 빈 프로젝트 생성 */
     @PostMapping("/projects/blank")
-    public ApiResponse<ProjectDto> createBlank(@AuthenticationPrincipal FirebaseToken token) {
+    public ApiResponse<ProjectDto> createBlank(
+            @AuthenticationPrincipal FirebaseToken token,
+            @RequestBody(required = false) Map<String, Object> body) {
         Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
-        return ApiResponse.ok(shortsService.createBlank(memberId));
+        String outputType = (body != null && body.containsKey("output_type"))
+                ? body.get("output_type").toString() : "video";
+        return ApiResponse.ok(shortsService.createBlank(memberId, outputType));
     }
 
     /** 내 프로젝트 목록 */

@@ -17,6 +17,14 @@ public class MemberServiceImpl implements MemberService {
     @Override
     public MemberDto saveOrUpdate(FirebaseAttributes attributes) {
         MemberDto existing = memberDao.findByGoogleId(attributes.getGoogleId());
+        if (existing == null && attributes.getEmail() != null) {
+            // google_id로 못 찾으면 email로 fallback (Firebase UID 변경 시 중복 방지)
+            existing = memberDao.findByEmail(attributes.getEmail());
+            if (existing != null) {
+                // 기존 계정에 새 google_id 업데이트
+                memberDao.updateGoogleId(existing.getMemberId(), attributes.getGoogleId());
+            }
+        }
         if (existing == null) {
             memberDao.insert(attributes);
         } else {
@@ -55,5 +63,15 @@ public class MemberServiceImpl implements MemberService {
     public MemberDto updateProfileImg(Long memberId, String profileImg) {
         memberDao.updateProfileImg(memberId, profileImg);
         return memberDao.findById(memberId);
+    }
+
+    @Override
+    public void updateFcmToken(Long memberId, String fcmToken) {
+        memberDao.updateFcmToken(memberId, fcmToken);
+    }
+
+    @Override
+    public String getFcmToken(Long memberId) {
+        return memberDao.getFcmToken(memberId);
     }
 }

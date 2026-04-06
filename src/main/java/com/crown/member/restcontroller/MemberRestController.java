@@ -54,6 +54,16 @@ public class MemberRestController {
         return ApiResponse.ok(updated);
     }
 
+    // FCM 토큰 등록/갱신
+    @PutMapping("/fcm-token")
+    public ApiResponse<Void> updateFcmToken(
+            @AuthenticationPrincipal FirebaseToken firebaseToken,
+            @RequestBody Map<String, String> body) {
+        MemberDto me = memberService.findByGoogleId(firebaseToken.getUid());
+        memberService.updateFcmToken(me.getMemberId(), body.get("fcmToken"));
+        return ApiResponse.ok(null);
+    }
+
     // 닉네임으로 회원 검색
     @GetMapping("/search")
     public ApiResponse<List<MemberDto>> search(

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.crown.inquiry.mapper.InquiryMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="inquiryId">
+        INSERT INTO inquiry (member_id, title, content)
+        VALUES (#{memberId, jdbcType=BIGINT}, #{title}, #{content})
+    </insert>
+
+    <select id="findById" resultType="com.crown.inquiry.dto.InquiryDto">
+        SELECT inquiry_id, member_id, title, content, status, created_at
+        FROM inquiry
+        WHERE inquiry_id = #{inquiryId}
+    </select>
+
+</mapper>

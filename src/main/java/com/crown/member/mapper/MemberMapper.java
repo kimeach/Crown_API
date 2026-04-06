@@ -9,9 +9,13 @@ import java.util.List;
 @Mapper
 public interface MemberMapper {
     MemberDto findByGoogleId(@Param("googleId") String googleId);
+    MemberDto findByEmail(@Param("email") String email);
+    void updateGoogleId(@Param("memberId") Long memberId, @Param("googleId") String googleId);
     MemberDto findById(@Param("memberId") Long memberId);
     void insert(FirebaseAttributes attributes);
     void updateProfile(FirebaseAttributes attributes);
+    void updateFcmToken(@Param("memberId") Long memberId, @Param("fcmToken") String fcmToken);
+    String getFcmToken(@Param("memberId") Long memberId);
     void updateNickname(@Param("memberId") Long memberId, @Param("nickname") String nickname);
     void updateProfileImg(@Param("memberId") Long memberId, @Param("profileImg") String profileImg);
     void updateScore(@Param("memberId") Long memberId,

@@ -1,5 +1,7 @@
 package com.crown.shorts.serviceimpl;
 
+import com.crown.common.service.FcmService;
+import com.crown.member.service.MemberService;
 import com.crown.shorts.dao.ShortsDao;
 import com.crown.shorts.dto.JobDto;
 import com.crown.shorts.dto.ProjectDto;
@@ -28,6 +30,8 @@ public class ShortsServiceImpl implements ShortsService {
 
     private final ShortsDao shortsDao;
     private final RestTemplate restTemplate;
+    private final FcmService fcmService;
+    private final MemberService memberService;
     private final ObjectMapper objectMapper;
 
     @Value("${worker.url}")
@@ -65,8 +69,10 @@ public class ShortsServiceImpl implements ShortsService {
     }
 
     @Override
-    public ProjectDto createBlank(Long memberId) {
-        return shortsDao.createProject(memberId, "blank", "dark_blue", null);
+    public ProjectDto createBlank(Long memberId, String outputType) {
+        Map<String, Object> options = new java.util.HashMap<>();
+        options.put("output_type", outputType != null ? outputType : "video");
+        return shortsDao.createProject(memberId, "blank", "dark_blue", options);
     }
 
     @Override
@@ -215,6 +221,8 @@ public class ShortsServiceImpl implements ShortsService {
                     log.warn("[onGenerateDone] thumbnail_url 업데이트 실패 (컬럼 미생성?): {}", thumbEx.getMessage());
                 }
             }
+            // FCM 푸시 알림
+            sendFcmToProjectOwner(projectId, "슬라이드 생성 완료", "'" + title + "' 슬라이드가 준비되었습니다.");
         } catch (JsonProcessingException e) {
             log.error("대본 직렬화 실패", e);
             shortsDao.updateProjectStatus(projectId, "error");
@@ -225,12 +233,15 @@ public class ShortsServiceImpl implements ShortsService {
     public void onGenerateError(Long projectId, String errorMessage) {
         log.error("[project {}] 생성 실패: {}", projectId, errorMessage);
         shortsDao.updateProjectStatus(projectId, "error");
+        sendFcmToProjectOwner(projectId, "생성 실패", "슬라이드 생성 중 오류가 발생했습니다.");
     }
 
     @Override
     public void onRenderDone(Long jobId, Long projectId, String videoUrl) {
         shortsDao.updateProjectVideo(projectId, videoUrl, "done");
         shortsDao.updateJobFinished(jobId, "done", null);
+        // FCM 푸시 알림
+        sendFcmToProjectOwner(projectId, "영상 생성 완료 🎬", "영상이 완성되었습니다. 지금 확인해보세요!");
     }
 
     @Override
@@ -238,6 +249,18 @@ public class ShortsServiceImpl implements ShortsService {
         log.error("[job {}] 렌더링 실패: {}", jobId, errorMessage);
         shortsDao.updateProjectStatus(projectId, "error");
         shortsDao.updateJobFinished(jobId, "error", errorMessage);
+        sendFcmToProjectOwner(projectId, "영상 생성 실패", "영상 생성 중 오류가 발생했습니다.");
+    }
+
+    private void sendFcmToProjectOwner(Long projectId, String title, String body) {
+        try {
+            ProjectDto project = shortsDao.getProjectById(projectId);
+            if (project == null) return;
+            String fcmToken = memberService.getFcmToken(project.getMemberId());
+            fcmService.send(fcmToken, title, body, String.valueOf(projectId));
+        } catch (Exception e) {
+            log.warn("[FCM] 프로젝트 {} 알림 실패: {}", projectId, e.getMessage());
+        }
     }
 
     // ── AI 재작성 ───────────────────────────────────────────────────

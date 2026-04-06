@@ -20,6 +20,14 @@
         SELECT * FROM member WHERE google_id = #{googleId}
     </select>
 
+    <select id="findByEmail" resultMap="memberResultMap">
+        SELECT * FROM member WHERE email = #{email} LIMIT 1
+    </select>
+
+    <update id="updateGoogleId">
+        UPDATE member SET google_id = #{googleId} WHERE member_id = #{memberId}
+    </update>
+
     <select id="findById" resultMap="memberResultMap">
         SELECT * FROM member WHERE member_id = #{memberId}
     </select>
@@ -44,6 +52,14 @@
     <update id="updateProfileImg">
         UPDATE member SET profile_img = #{profileImg} WHERE member_id = #{memberId}
     </update>
+
+    <update id="updateFcmToken">
+        UPDATE member SET fcm_token = #{fcmToken} WHERE member_id = #{memberId}
+    </update>
+
+    <select id="getFcmToken" resultType="String">
+        SELECT fcm_token FROM member WHERE member_id = #{memberId}
+    </select>
 
     <update id="updateScore">
         UPDATE member

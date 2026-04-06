@@ -12,4 +12,6 @@ public interface MemberService {
     List<MemberDto> searchByNickname(String nickname, Long excludeId);
     MemberDto updateNickname(Long memberId, String nickname);
     MemberDto updateProfileImg(Long memberId, String profileImg);
+    void updateFcmToken(Long memberId, String fcmToken);
+    String getFcmToken(Long memberId);
 }

@@ -17,7 +17,7 @@ public interface ShortsService {
     ProjectDto createAndGenerate(Long memberId, String category, String templateId, Map<String, Object> options);
 
     /** 빈 프로젝트 생성 (워커 호출 없음) */
-    ProjectDto createBlank(Long memberId);
+    ProjectDto createBlank(Long memberId, String outputType);
 
     /** TTS 미리 듣기 — 오디오 바이트 반환 */
     byte[] getTtsPreview(String text, String voice, String rate);

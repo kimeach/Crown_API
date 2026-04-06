@@ -18,6 +18,14 @@ public class MemberDao {
         return memberMapper.findByGoogleId(googleId);
     }
 
+    public MemberDto findByEmail(String email) {
+        return memberMapper.findByEmail(email);
+    }
+
+    public void updateGoogleId(Long memberId, String googleId) {
+        memberMapper.updateGoogleId(memberId, googleId);
+    }
+
     public MemberDto findById(Long memberId) {
         return memberMapper.findById(memberId);
     }
@@ -36,6 +44,14 @@ public class MemberDao {
 
     public void updateProfileImg(Long memberId, String profileImg) {
         memberMapper.updateProfileImg(memberId, profileImg);
+    }
+
+    public void updateFcmToken(Long memberId, String fcmToken) {
+        memberMapper.updateFcmToken(memberId, fcmToken);
+    }
+
+    public String getFcmToken(Long memberId) {
+        return memberMapper.getFcmToken(memberId);
     }
 
     public void updateScore(Long memberId, int scoreDelta, String result) {
