@@ -42,6 +42,7 @@ jobs:
             sleep 2
             cd /root/app
             SLACK_ERRORS_WEBHOOK="${{ secrets.SLACK_ERRORS_WEBHOOK }}" \
+            FIREBASE_CREDENTIAL_PATH=/root/app/firebase-service-account2.json \
             nohup java -Xms128m -Xmx300m \
               -Dspring.config.additional-location=file:/root/app/ \
               -jar Crown_API-0.0.1-SNAPSHOT.jar \
