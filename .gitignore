@@ -1,9 +1,9 @@
 # Gradle
 .gradle/
 build/
-gradle/
-gradlew
-gradlew.bat
+# gradle/ → Actions 빌드에 필요
+# gradlew → Actions 빌드에 필요
+# gradlew.bat → Actions 빌드에 필요
 
 # IDE
 .idea/
