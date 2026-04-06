@@ -5,10 +5,13 @@ import com.crown.member.service.MemberService;
 import com.crown.shorts.dto.JobDto;
 import com.crown.shorts.dto.ProjectDto;
 import com.crown.shorts.dto.QuestionDto;
+import com.crown.shorts.service.ProgressService;
 import com.crown.shorts.service.ShortsService;
+import com.crown.shorts.service.UsageLimitService;
 import com.google.firebase.auth.FirebaseToken;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,6 +30,8 @@ public class ShortsRestController {
 
     private final ShortsService shortsService;
     private final MemberService memberService;
+    private final ProgressService progressService;
+    private final UsageLimitService usageLimitService;
 
     /** 카테고리별 설문 질문 조회 */
     @GetMapping("/questions")
@@ -407,5 +412,43 @@ public class ShortsRestController {
         } else {
             shortsService.onRenderError(jobId, projectId, (String) body.get("error_message"));
         }
+    }
+
+    /** Python 워커 → 진행률 브로드캐스트 */
+    @PostMapping("/internal/progress/{projectId}")
+    public void receiveProgress(
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long jobId = body.get("job_id") != null ? Long.valueOf(body.get("job_id").toString()) : null;
+        int percent = body.get("percent") != null ? (int) body.get("percent") : 0;
+        String step    = (String) body.getOrDefault("step", "");
+        String message = (String) body.getOrDefault("message", "");
+        progressService.send(projectId, jobId, percent, step, message);
+    }
+
+    // ── 사용량 조회 ─────────────────────────────────────────────────
+
+    /** 이번 달 사용량 조회 */
+    @GetMapping("/usage")
+    public ApiResponse<Map<String, Object>> getUsage(@AuthenticationPrincipal FirebaseToken token) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        String plan = memberService.findById(memberId).getPlan();
+        int generateCount = usageLimitService.getMonthlyUsage(memberId, "GENERATE");
+        int renderCount   = usageLimitService.getMonthlyUsage(memberId, "RENDER");
+        return ApiResponse.ok(Map.of(
+                "plan",          plan != null ? plan : "free",
+                "limit",         UsageLimitService.FREE_MONTHLY_LIMIT,
+                "generateCount", generateCount,
+                "renderCount",   renderCount
+        ));
+    }
+
+    // ── 예외 처리 ───────────────────────────────────────────────────
+
+    /** 사용량 초과 시 402 Payment Required */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUsageLimit(IllegalStateException ex) {
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
+                .body(ApiResponse.fail(ex.getMessage()));
     }
 }

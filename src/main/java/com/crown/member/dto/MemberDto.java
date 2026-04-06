@@ -15,4 +15,5 @@ public class MemberDto {
     private int    winCount;
     private int    loseCount;
     private int    drawCount;
+    private String plan;
 }

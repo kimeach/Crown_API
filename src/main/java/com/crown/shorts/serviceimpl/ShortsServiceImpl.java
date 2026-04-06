@@ -2,6 +2,7 @@ package com.crown.shorts.serviceimpl;
 
 import com.crown.common.service.FcmService;
 import com.crown.member.service.MemberService;
+import com.crown.shorts.service.UsageLimitService;
 import com.crown.shorts.dao.ShortsDao;
 import com.crown.shorts.dto.JobDto;
 import com.crown.shorts.dto.ProjectDto;
@@ -32,6 +33,7 @@ public class ShortsServiceImpl implements ShortsService {
     private final RestTemplate restTemplate;
     private final FcmService fcmService;
     private final MemberService memberService;
+    private final UsageLimitService usageLimitService;
     private final ObjectMapper objectMapper;
 
     @Value("${worker.url}")
@@ -52,6 +54,10 @@ public class ShortsServiceImpl implements ShortsService {
 
     @Override
     public ProjectDto createAndGenerate(Long memberId, String category, String templateId, Map<String, Object> options) {
+        // 사용량 제한 체크 (free: 월 5회)
+        String plan = memberService.findById(memberId).getPlan();
+        usageLimitService.checkAndRecord(memberId, plan, "GENERATE");
+
         ProjectDto project = shortsDao.createProject(memberId, category, templateId, options);
 
         String callbackUrl = appBaseUrl + "/api/shorts/internal/generate-callback/" + project.getProjectId();
@@ -59,6 +65,7 @@ public class ShortsServiceImpl implements ShortsService {
         body.put("project_id",   project.getProjectId());
         body.put("callback_url", callbackUrl);
         body.put("template_id",  templateId);
+        body.put("category",     category);
         if (options != null && !options.isEmpty()) {
             body.put("options", options);
         }
@@ -179,6 +186,10 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     public JobDto startRender(Long projectId, Long memberId, Map<String, Object> renderOptions) {
         ProjectDto project = getProject(projectId, memberId);
+
+        // 사용량 제한 체크 (free: 월 5회)
+        String plan = memberService.findById(memberId).getPlan();
+        usageLimitService.checkAndRecord(memberId, plan, "RENDER");
 
         JobDto job = shortsDao.createJob(projectId);
         shortsDao.updateProjectStatus(projectId, "generating");
