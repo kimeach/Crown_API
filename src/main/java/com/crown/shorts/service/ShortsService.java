@@ -121,6 +121,12 @@ public interface ShortsService {
     void deleteSchedule(Long scheduleId);
     Map<String, Object> toggleSchedule(Long scheduleId);
 
+    // ── 코멘트/피드백 ─────────────────────────────────────────────────
+    List<Map<String, Object>> getComments(Long projectId);
+    Map<String, Object> createComment(Long memberId, Map<String, Object> body);
+    Map<String, Object> updateComment(Long commentId, String content);
+    void deleteComment(Long commentId);
+
     /** Python 워커 콜백 — 데이터 수집 완료 */
     void onGenerateDone(Long projectId, String htmlUrl, Map<String, String> script, String title, String thumbnailUrl);
 

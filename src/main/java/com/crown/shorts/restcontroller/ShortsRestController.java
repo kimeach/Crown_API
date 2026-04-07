@@ -530,6 +530,50 @@ public class ShortsRestController {
         return ApiResponse.ok(shortsService.toggleSchedule(id));
     }
 
+    // ── 코멘트/피드백 ────────────────────────────────────────────────
+
+    /** 프로젝트 코멘트 목록 */
+    @GetMapping("/projects/{projectId}/comments")
+    public ApiResponse<List<Map<String, Object>>> getComments(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId) {
+        memberService.findByGoogleId(token.getUid()); // 인증 확인
+        return ApiResponse.ok(shortsService.getComments(projectId));
+    }
+
+    /** 코멘트 생성 */
+    @PostMapping("/projects/{projectId}/comments")
+    public ApiResponse<Map<String, Object>> createComment(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        body = new java.util.HashMap<>(body);
+        body.put("project_id", projectId);
+        return ApiResponse.ok(shortsService.createComment(memberId, body));
+    }
+
+    /** 코멘트 수정 */
+    @PutMapping("/comments/{commentId}")
+    public ApiResponse<Map<String, Object>> updateComment(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long commentId,
+            @RequestBody Map<String, Object> body) {
+        memberService.findByGoogleId(token.getUid());
+        String content = (String) body.get("content");
+        return ApiResponse.ok(shortsService.updateComment(commentId, content));
+    }
+
+    /** 코멘트 삭제 */
+    @DeleteMapping("/comments/{commentId}")
+    public ApiResponse<Void> deleteComment(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long commentId) {
+        memberService.findByGoogleId(token.getUid());
+        shortsService.deleteComment(commentId);
+        return ApiResponse.ok(null);
+    }
+
     // ── 예외 처리 ───────────────────────────────────────────────────
 
     /** 사용량 초과 시 402 Payment Required */
