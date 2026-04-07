@@ -256,7 +256,7 @@ public class ShortsServiceImpl implements ShortsService {
         callWorker("POST", "/cancel", body);
 
         // DB 상태 업데이트
-        shortsDao.updateJobStatus(jobId, "cancelled");
+        shortsDao.updateJobFinished(jobId, "cancelled", null);
         shortsDao.updateProjectStatus(projectId, "draft");
     }
 
