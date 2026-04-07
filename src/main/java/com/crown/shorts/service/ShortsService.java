@@ -121,6 +121,25 @@ public interface ShortsService {
     void deleteSchedule(Long scheduleId);
     Map<String, Object> toggleSchedule(Long scheduleId);
 
+    // ── 코멘트/피드백 ─────────────────────────────────────────────────
+    List<Map<String, Object>> getComments(Long projectId);
+    Map<String, Object> createComment(Long memberId, Map<String, Object> body);
+    Map<String, Object> updateComment(Long commentId, String content);
+    void deleteComment(Long commentId);
+
+    // ── 팀 협업 ──────────────────────────────────────────────────────
+    List<Map<String, Object>> getTeams(Long memberId);
+    Map<String, Object> createTeam(Long memberId, Map<String, Object> body);
+    Map<String, Object> getTeam(Long teamId);
+    void deleteTeam(Long teamId);
+    Map<String, Object> inviteTeamMember(Long teamId, Map<String, Object> body);
+    Map<String, Object> updateTeamMemberRole(Long teamId, Long memberId, String role);
+    void removeTeamMember(Long teamId, Long memberId);
+    Map<String, Object> acceptTeamInvite(Long teamId, Long memberId);
+    Map<String, Object> shareTeamProject(Long teamId, Long sharedBy, Map<String, Object> body);
+    List<Map<String, Object>> getTeamProjects(Long teamId);
+    void removeTeamProject(Long teamId, Long projectId);
+
     /** Python 워커 콜백 — 데이터 수집 완료 */
     void onGenerateDone(Long projectId, String htmlUrl, Map<String, String> script, String title, String thumbnailUrl);
 

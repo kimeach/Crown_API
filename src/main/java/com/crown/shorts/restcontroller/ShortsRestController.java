@@ -530,6 +530,160 @@ public class ShortsRestController {
         return ApiResponse.ok(shortsService.toggleSchedule(id));
     }
 
+    // ── 코멘트/피드백 ────────────────────────────────────────────────
+
+    /** 프로젝트 코멘트 목록 */
+    @GetMapping("/projects/{projectId}/comments")
+    public ApiResponse<List<Map<String, Object>>> getComments(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId) {
+        memberService.findByGoogleId(token.getUid());
+        return ApiResponse.ok(shortsService.getComments(projectId));
+    }
+
+    /** 코멘트 생성 */
+    @PostMapping("/projects/{projectId}/comments")
+    public ApiResponse<Map<String, Object>> createComment(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        body = new java.util.HashMap<>(body);
+        body.put("project_id", projectId);
+        return ApiResponse.ok(shortsService.createComment(memberId, body));
+    }
+
+    /** 코멘트 수정 (작성자만) */
+    @PutMapping("/comments/{commentId}")
+    public ApiResponse<Map<String, Object>> updateComment(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long commentId,
+            @RequestBody Map<String, Object> body) {
+        memberService.findByGoogleId(token.getUid());
+        String content = (String) body.get("content");
+        return ApiResponse.ok(shortsService.updateComment(commentId, content));
+    }
+
+    /** 코멘트 삭제 (작성자만) */
+    @DeleteMapping("/comments/{commentId}")
+    public ApiResponse<Void> deleteComment(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long commentId) {
+        memberService.findByGoogleId(token.getUid());
+        shortsService.deleteComment(commentId);
+        return ApiResponse.ok(null);
+    }
+
+    // ── 팀 협업 ─────────────────────────────────────────────────────
+
+    /** 내 팀 목록 */
+    @GetMapping("/teams")
+    public ApiResponse<List<Map<String, Object>>> getTeams(
+            @AuthenticationPrincipal FirebaseToken token) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.getTeams(memberId));
+    }
+
+    /** 팀 생성 */
+    @PostMapping("/teams")
+    public ApiResponse<Map<String, Object>> createTeam(
+            @AuthenticationPrincipal FirebaseToken token,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.createTeam(memberId, body));
+    }
+
+    /** 팀 상세 (멤버 포함) */
+    @GetMapping("/teams/{teamId}")
+    public ApiResponse<Map<String, Object>> getTeam(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long teamId) {
+        memberService.findByGoogleId(token.getUid());
+        return ApiResponse.ok(shortsService.getTeam(teamId));
+    }
+
+    /** 팀 삭제 (owner 전용) */
+    @DeleteMapping("/teams/{teamId}")
+    public ApiResponse<Void> deleteTeam(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long teamId) {
+        memberService.findByGoogleId(token.getUid());
+        shortsService.deleteTeam(teamId);
+        return ApiResponse.ok(null);
+    }
+
+    /** 멤버 초대 */
+    @PostMapping("/teams/{teamId}/invite")
+    public ApiResponse<Map<String, Object>> inviteTeamMember(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long teamId,
+            @RequestBody Map<String, Object> body) {
+        memberService.findByGoogleId(token.getUid());
+        return ApiResponse.ok(shortsService.inviteTeamMember(teamId, body));
+    }
+
+    /** 역할 변경 */
+    @PutMapping("/teams/{teamId}/members/{memberId}/role")
+    public ApiResponse<Map<String, Object>> updateTeamMemberRole(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long teamId,
+            @PathVariable Long memberId,
+            @RequestBody Map<String, Object> body) {
+        memberService.findByGoogleId(token.getUid());
+        String role = (String) body.get("role");
+        return ApiResponse.ok(shortsService.updateTeamMemberRole(teamId, memberId, role));
+    }
+
+    /** 멤버 제거 */
+    @DeleteMapping("/teams/{teamId}/members/{memberId}")
+    public ApiResponse<Void> removeTeamMember(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long teamId,
+            @PathVariable Long memberId) {
+        memberService.findByGoogleId(token.getUid());
+        shortsService.removeTeamMember(teamId, memberId);
+        return ApiResponse.ok(null);
+    }
+
+    /** 초대 수락 */
+    @PutMapping("/teams/{teamId}/accept")
+    public ApiResponse<Map<String, Object>> acceptTeamInvite(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long teamId) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.acceptTeamInvite(teamId, memberId));
+    }
+
+    /** 팀에 프로젝트 공유 */
+    @PostMapping("/teams/{teamId}/projects")
+    public ApiResponse<Map<String, Object>> shareTeamProject(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long teamId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.shareTeamProject(teamId, memberId, body));
+    }
+
+    /** 팀 공유 프로젝트 목록 */
+    @GetMapping("/teams/{teamId}/projects")
+    public ApiResponse<List<Map<String, Object>>> getTeamProjects(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long teamId) {
+        memberService.findByGoogleId(token.getUid());
+        return ApiResponse.ok(shortsService.getTeamProjects(teamId));
+    }
+
+    /** 공유 해제 */
+    @DeleteMapping("/teams/{teamId}/projects/{projectId}")
+    public ApiResponse<Void> removeTeamProject(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long teamId,
+            @PathVariable Long projectId) {
+        memberService.findByGoogleId(token.getUid());
+        shortsService.removeTeamProject(teamId, projectId);
+        return ApiResponse.ok(null);
+    }
+
     // ── 예외 처리 ───────────────────────────────────────────────────
 
     /** 사용량 초과 시 402 Payment Required */

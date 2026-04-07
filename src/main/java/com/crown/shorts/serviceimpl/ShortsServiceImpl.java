@@ -738,6 +738,122 @@ public class ShortsServiceImpl implements ShortsService {
         return data instanceof Map ? (Map<String, Object>) data : Map.of();
     }
 
+    // ── 코멘트/피드백 ─────────────────────────────────────────────────
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getComments(Long projectId) {
+        Map<String, Object> result = callWorkerJson("GET", "/comment?project_id=" + projectId, null);
+        Object data = result.get("data");
+        return data instanceof List ? (List<Map<String, Object>>) data : List.of();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> createComment(Long memberId, Map<String, Object> body) {
+        body = new java.util.HashMap<>(body);
+        body.put("member_id", memberId);
+        Map<String, Object> result = callWorkerJson("POST", "/comment", body);
+        Object data = result.get("data");
+        return data instanceof Map ? (Map<String, Object>) data : Map.of();
+    }
+
+    @Override
+    public Map<String, Object> updateComment(Long commentId, String content) {
+        callWorkerJson("PUT", "/comment/" + commentId, Map.of("content", content));
+        return Map.of("updated", true);
+    }
+
+    @Override
+    public void deleteComment(Long commentId) {
+        callWorkerJson("DELETE", "/comment/" + commentId, null);
+    }
+
+    // ── 팀 협업 ──────────────────────────────────────────────────────
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getTeams(Long memberId) {
+        Map<String, Object> result = callWorkerJson("GET", "/team?member_id=" + memberId, null);
+        Object data = result.get("data");
+        return data instanceof List ? (List<Map<String, Object>>) data : List.of();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> createTeam(Long memberId, Map<String, Object> body) {
+        body = new java.util.HashMap<>(body);
+        body.put("owner_id", memberId);
+        Map<String, Object> result = callWorkerJson("POST", "/team", body);
+        Object data = result.get("data");
+        return data instanceof Map ? (Map<String, Object>) data : Map.of();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getTeam(Long teamId) {
+        Map<String, Object> result = callWorkerJson("GET", "/team/" + teamId, null);
+        Object data = result.get("data");
+        return data instanceof Map ? (Map<String, Object>) data : Map.of();
+    }
+
+    @Override
+    public void deleteTeam(Long teamId) {
+        callWorkerJson("DELETE", "/team/" + teamId, null);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> inviteTeamMember(Long teamId, Map<String, Object> body) {
+        Map<String, Object> result = callWorkerJson("POST", "/team/" + teamId + "/invite", body);
+        Object data = result.get("data");
+        return data instanceof Map ? (Map<String, Object>) data : Map.of();
+    }
+
+    @Override
+    public Map<String, Object> updateTeamMemberRole(Long teamId, Long memberId, String role) {
+        callWorkerJson("PUT", "/team/" + teamId + "/member/" + memberId + "/role",
+                Map.of("role", role));
+        return Map.of("updated", true);
+    }
+
+    @Override
+    public void removeTeamMember(Long teamId, Long memberId) {
+        callWorkerJson("DELETE", "/team/" + teamId + "/member/" + memberId, null);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> acceptTeamInvite(Long teamId, Long memberId) {
+        Map<String, Object> result = callWorkerJson("PUT",
+                "/team/" + teamId + "/accept?member_id=" + memberId, null);
+        Object data = result.get("data");
+        return data instanceof Map ? (Map<String, Object>) data : Map.of();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> shareTeamProject(Long teamId, Long sharedBy, Map<String, Object> body) {
+        body = new java.util.HashMap<>(body);
+        body.put("shared_by", sharedBy);
+        Map<String, Object> result = callWorkerJson("POST", "/team/" + teamId + "/project", body);
+        Object data = result.get("data");
+        return data instanceof Map ? (Map<String, Object>) data : Map.of();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getTeamProjects(Long teamId) {
+        Map<String, Object> result = callWorkerJson("GET", "/team/" + teamId + "/project", null);
+        Object data = result.get("data");
+        return data instanceof List ? (List<Map<String, Object>>) data : List.of();
+    }
+
+    @Override
+    public void removeTeamProject(Long teamId, Long projectId) {
+        callWorkerJson("DELETE", "/team/" + teamId + "/project/" + projectId, null);
+    }
+
     // ── 내부 유틸 ──────────────────────────────────────────────────
 
     private void callWorker(String method, String path, Map<String, Object> body) {
