@@ -49,13 +49,17 @@ public class FeatureProposalScheduler {
                 return;
             }
 
-            // Step 3: Slack 전송
-            sendToSlack(proposals);
+            // Step 3: DB 저장 (중복 제외) → 저장된 제안들만 반환
+            List<Map<String, String>> savedProposals = recordToDb(proposals);
 
-            // Step 4: DB 저장
-            recordToDb(proposals);
-
-            log.info("[FeatureProposal] 완료 — {}개 제안 저장", proposals.size());
+            // Step 4: Slack 전송 (저장된 제안이 있을 때만)
+            if (!savedProposals.isEmpty()) {
+                sendToSlack(savedProposals);
+                log.info("[FeatureProposal] 완료 — {}개 제안 저장 및 Slack 전송", savedProposals.size());
+            } else {
+                sendNoProposalToSlack();
+                log.info("[FeatureProposal] 완료 — 모든 제안이 중복이므로 저장되지 않음");
+            }
         } catch (Exception e) {
             log.error("[FeatureProposal] 오류: {}", e.getMessage(), e);
         }
@@ -216,9 +220,24 @@ public class FeatureProposalScheduler {
         }
     }
 
-    private void recordToDb(List<Map<String, String>> proposals) {
-        int priority = 1;
+    private List<Map<String, String>> recordToDb(List<Map<String, String>> proposals) {
+        List<Map<String, String>> savedProposals = new ArrayList<>();
+
         for (Map<String, String> p : proposals) {
+            String featureName = p.getOrDefault("기능명", "");
+
+            // 중복 체크: sm_feature_roadmap 테이블에서 같은 feature_name 존재하는지 확인
+            // (status가 '보류'가 아닌 것들만 중복으로 간주)
+            Integer existCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sm_feature_roadmap WHERE feature_name = ? AND status != '보류'",
+                Integer.class, featureName);
+
+            if (existCount != null && existCount > 0) {
+                log.warn("[FeatureProposal] 중복 제안 제외: {}", featureName);
+                continue;  // 중복이면 건너뛰기
+            }
+
+            // 중복이 아니면 INSERT
             try {
                 boolean autoOk = "가능".equals(p.getOrDefault("자동개발", "불가능"));
                 jdbcTemplate.update(
@@ -227,16 +246,34 @@ public class FeatureProposalScheduler {
                     " difficulty, priority, auto_developable, status) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, '검토중')",
                     LocalDate.now(),
-                    p.getOrDefault("기능명", ""),
+                    featureName,
                     p.getOrDefault("참고서비스", ""),
                     p.getOrDefault("구현방법", ""),
                     p.getOrDefault("난이도", ""),
-                    priority++,
+                    savedProposals.size() + 1,  // priority는 저장된 개수 + 1
                     autoOk);
-                log.info("[FeatureProposal] DB 저장 완료: {}", p.get("기능명"));
+                log.info("[FeatureProposal] DB 저장 완료: {}", featureName);
+                savedProposals.add(p);  // 저장된 제안만 리스트에 추가
             } catch (Exception e) {
-                log.error("[FeatureProposal] DB 저장 실패: {}", e.getMessage());
+                log.error("[FeatureProposal] DB 저장 실패: {} — {}", featureName, e.getMessage());
             }
+        }
+
+        return savedProposals;
+    }
+
+    private void sendNoProposalToSlack() {
+        try {
+            String message = "오늘의 기능 제안 — " + LocalDate.now() + "\n\n" +
+                            "모든 제안이 이미 로드맵에 존재하여 신규 제안이 없습니다.";
+
+            Map<String, String> body = Map.of("text", message);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            restTemplate.postForEntity(slackIdeasWebhook, new HttpEntity<>(body, headers), String.class);
+            log.info("[FeatureProposal] Slack '제안 없음' 메시지 전송 완료");
+        } catch (Exception e) {
+            log.error("[FeatureProposal] Slack 전송 실패: {}", e.getMessage());
         }
     }
 }
