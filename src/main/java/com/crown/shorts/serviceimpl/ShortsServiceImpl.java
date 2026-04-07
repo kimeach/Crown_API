@@ -622,15 +622,43 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> listVoices() {
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+
+        // 1) edge-tts 기본 목소리 (Python Worker /tts/voices)
+        try {
+            Map<String, Object> ttsRes = callWorkerJson("GET", "/tts/voices", null);
+            Object ttsData = ttsRes.get("data");
+            if (ttsData instanceof Map) {
+                Map<String, List<Map<String, Object>>> langMap = (Map<String, List<Map<String, Object>>>) ttsData;
+                for (var entry : langMap.entrySet()) {
+                    for (Map<String, Object> v : entry.getValue()) {
+                        Map<String, Object> item = new java.util.HashMap<>(v);
+                        item.put("category", "edge_tts");
+                        item.put("lang", entry.getKey());
+                        result.add(item);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("edge-tts 목소리 목록 조회 실패: {}", e.getMessage());
+        }
+
+        // 2) ElevenLabs 복제 목소리 (Python Worker /voice/list)
         try {
             Map<String, Object> res = callWorkerJson("GET", "/voice/list", null);
             Object data = res.get("data");
-            if (data instanceof List) return (List<Map<String, Object>>) data;
-            return new java.util.ArrayList<>();
+            if (data instanceof List) {
+                for (Map<String, Object> v : (List<Map<String, Object>>) data) {
+                    Map<String, Object> item = new java.util.HashMap<>(v);
+                    item.putIfAbsent("category", "elevenlabs");
+                    result.add(item);
+                }
+            }
         } catch (Exception e) {
-            log.error("목소리 목록 조회 실패: {}", e.getMessage());
-            return new java.util.ArrayList<>();
+            log.warn("ElevenLabs 목소리 목록 조회 실패: {}", e.getMessage());
         }
+
+        return result;
     }
 
     @Override
