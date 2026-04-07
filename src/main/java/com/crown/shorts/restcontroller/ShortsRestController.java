@@ -77,7 +77,8 @@ public class ShortsRestController {
         byte[] audio = shortsService.getTtsPreview(
                 (String) body.getOrDefault("text",  ""),
                 (String) body.getOrDefault("voice", "ko-KR-InJoonNeural"),
-                (String) body.getOrDefault("rate",  "+25%")
+                (String) body.getOrDefault("rate",  "+25%"),
+                (String) body.getOrDefault("emotion", null)
         );
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.valueOf("audio/mpeg").toString())
