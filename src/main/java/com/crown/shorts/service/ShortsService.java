@@ -120,6 +120,7 @@ public interface ShortsService {
     Map<String, Object> updateSchedule(Long scheduleId, Map<String, Object> body);
     void deleteSchedule(Long scheduleId);
     Map<String, Object> toggleSchedule(Long scheduleId);
+    List<Map<String, Object>> getScheduleLogs(Long scheduleId, int limit);
 
     // ── 코멘트/피드백 ─────────────────────────────────────────────────
     List<Map<String, Object>> getComments(Long projectId);

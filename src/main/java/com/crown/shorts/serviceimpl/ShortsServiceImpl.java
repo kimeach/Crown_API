@@ -738,6 +738,14 @@ public class ShortsServiceImpl implements ShortsService {
         return data instanceof Map ? (Map<String, Object>) data : Map.of();
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getScheduleLogs(Long scheduleId, int limit) {
+        Map<String, Object> result = callWorkerJson("GET", "/schedule/" + scheduleId + "/logs?limit=" + limit, null);
+        Object data = result.get("data");
+        return data instanceof List ? (List<Map<String, Object>>) data : List.of();
+    }
+
     // ── 코멘트/피드백 ─────────────────────────────────────────────────
 
     @Override

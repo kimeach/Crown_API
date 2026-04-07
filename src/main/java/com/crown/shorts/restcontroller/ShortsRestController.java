@@ -530,6 +530,16 @@ public class ShortsRestController {
         return ApiResponse.ok(shortsService.toggleSchedule(id));
     }
 
+    /** 스케줄 실행 이력 조회 (최근 N건) */
+    @GetMapping("/schedule/{id}/logs")
+    public ApiResponse<List<Map<String, Object>>> getScheduleLogs(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "20") int limit) {
+        memberService.findByGoogleId(token.getUid());
+        return ApiResponse.ok(shortsService.getScheduleLogs(id, Math.min(limit, 100)));
+    }
+
     // ── 코멘트/피드백 ────────────────────────────────────────────────
 
     /** 프로젝트 코멘트 목록 */
