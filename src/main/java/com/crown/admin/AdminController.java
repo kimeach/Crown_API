@@ -345,28 +345,35 @@ public class AdminController {
     public Map<String, Object> createRoadmapItem(@RequestBody Map<String, Object> body) {
         String featureName = String.valueOf(body.get("feature_name"));
 
-        // 중복 체크: sm_feature_roadmap 테이블에 같은 feature_name 존재하면 제외
+        // 중복 체크: sm_feature_roadmap 테이블에서 같은 feature_name 존재하는지 확인 (status != '보류')
         Integer existCount = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM sm_feature_roadmap WHERE feature_name = ? AND status != '보류'",
             Integer.class, featureName);
 
         if (existCount != null && existCount > 0) {
-            return Map.of("id", -1, "message", "동일한 기능 제안이 이미 존재합니다. 중복 제안은 제외됩니다.");
+            log.warn("[Feature Proposal] 기능제안 생성 실패 — 중복 제안: {}", featureName);
+            return Map.of("success", false, "message", "동일한 기능 제안이 이미 존재하여 저장되지 않았습니다.");
         }
 
         // 중복이 아니면 INSERT
-        jdbcTemplate.update(
-            "INSERT INTO sm_feature_roadmap " +
-            "(proposal_date, feature_name, reference_service, implementation_desc, " +
-            " difficulty, estimated_time, priority, auto_developable, auto_dev_reason, status) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '검토중')",
-            body.get("proposal_date"), featureName, body.get("reference_service"),
-            body.get("implementation_desc"), body.get("difficulty"), body.get("estimated_time"),
-            body.get("priority"), body.getOrDefault("auto_developable", false),
-            body.getOrDefault("auto_dev_reason", ""));
+        try {
+            jdbcTemplate.update(
+                "INSERT INTO sm_feature_roadmap " +
+                "(proposal_date, feature_name, reference_service, implementation_desc, " +
+                " difficulty, estimated_time, priority, auto_developable, auto_dev_reason, status) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '검토중')",
+                body.get("proposal_date"), featureName, body.get("reference_service"),
+                body.get("implementation_desc"), body.get("difficulty"), body.get("estimated_time"),
+                body.get("priority"), body.getOrDefault("auto_developable", false),
+                body.getOrDefault("auto_dev_reason", ""));
 
-        Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-        return Map.of("id", id, "message", "생성 완료");
+            Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+            log.info("[Feature Proposal] 기능제안 생성 완료: {} (id={})", featureName, id);
+            return Map.of("success", true, "id", id, "message", "기능 제안이 저장되었습니다.");
+        } catch (Exception e) {
+            log.error("[Feature Proposal] 기능제안 생성 실패: {}", e.getMessage());
+            return Map.of("success", false, "message", "기능 제안 저장에 실패했습니다.");
+        }
     }
 
     @PatchMapping("/roadmap/{id}/status")
@@ -390,29 +397,36 @@ public class AdminController {
     // 기획 제안 → 기획으로 올리기 (중복 체크)
     @PostMapping("/roadmap/{id}/promote")
     public Map<String, Object> promoteToPlanning(@PathVariable Long id) {
-        Map<String, Object> item = jdbcTemplate.queryForMap(
-            "SELECT feature_name, implementation_desc, difficulty, reference_service FROM sm_feature_roadmap WHERE id = ?", id);
+        try {
+            Map<String, Object> item = jdbcTemplate.queryForMap(
+                "SELECT feature_name, implementation_desc, difficulty, reference_service FROM sm_feature_roadmap WHERE id = ?", id);
 
-        String featureName = String.valueOf(item.get("feature_name"));
+            String featureName = String.valueOf(item.get("feature_name"));
 
-        // 중복 체크: sm_planning 테이블에 같은 title이 이미 존재하면 제외
-        Integer planningCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM sm_planning WHERE title = ?",
-            Integer.class, featureName);
+            // 중복 체크: sm_planning 테이블에서 같은 title 존재하는지 확인
+            Integer planningCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sm_planning WHERE title = ?",
+                Integer.class, featureName);
 
-        if (planningCount != null && planningCount > 0) {
-            // 기획이 이미 존재하면 기획이관 상태로만 업데이트 후 반환
+            if (planningCount != null && planningCount > 0) {
+                // 기획이 이미 존재하면 기획이관 상태로만 업데이트
+                jdbcTemplate.update("UPDATE sm_feature_roadmap SET status = '기획이관' WHERE id = ?", id);
+                log.warn("[Feature Proposal] 기획 이관 실패 — 동일한 기획 존재: {} (feature_id={})", featureName, id);
+                return Map.of("success", false, "message", "동일한 기획이 이미 존재하여 저장되지 않았습니다. 기획이관 상태로만 표기됩니다.");
+            }
+
+            // 중복이 아니면 INSERT
+            jdbcTemplate.update(
+                "INSERT INTO sm_planning (title, description, category, status, source, proposal_id) VALUES (?, ?, ?, '아이디어', 'proposal', ?)",
+                item.get("feature_name"), item.get("implementation_desc"), item.get("reference_service"), id);
             jdbcTemplate.update("UPDATE sm_feature_roadmap SET status = '기획이관' WHERE id = ?", id);
-            return Map.of("planning_id", -1, "message", "동일한 기획이 이미 존재하여 기획이관으로만 표기됩니다.");
+            Long planId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+            log.info("[Feature Proposal] 기획 이관 완료: {} (feature_id={}, planning_id={})", featureName, id, planId);
+            return Map.of("success", true, "planning_id", planId, "message", "기획으로 이관되었습니다.");
+        } catch (Exception e) {
+            log.error("[Feature Proposal] 기획 이관 실패: {}", e.getMessage());
+            return Map.of("success", false, "message", "기획 이관에 실패했습니다.");
         }
-
-        // 중복이 아니면 INSERT
-        jdbcTemplate.update(
-            "INSERT INTO sm_planning (title, description, category, status, source, proposal_id) VALUES (?, ?, ?, '아이디어', 'proposal', ?)",
-            item.get("feature_name"), item.get("implementation_desc"), item.get("reference_service"), id);
-        jdbcTemplate.update("UPDATE sm_feature_roadmap SET status = '기획이관' WHERE id = ?", id);
-        Long planId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-        return Map.of("planning_id", planId, "message", "기획으로 이관됨");
     }
 
     // ── 기획 ────────────────────────────────────────────────────────────
