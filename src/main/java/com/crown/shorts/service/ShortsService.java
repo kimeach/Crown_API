@@ -113,6 +113,14 @@ public interface ShortsService {
     /** 트렌딩 토픽 조회 */
     List<Map<String, Object>> getTrendingTopics(String category, int limit);
 
+    // ── 배치 스케줄 ──────────────────────────────────────────────────
+    List<Map<String, Object>> getSchedules(Long memberId);
+    Map<String, Object> createSchedule(Long memberId, Map<String, Object> body);
+    Map<String, Object> getSchedule(Long scheduleId);
+    Map<String, Object> updateSchedule(Long scheduleId, Map<String, Object> body);
+    void deleteSchedule(Long scheduleId);
+    Map<String, Object> toggleSchedule(Long scheduleId);
+
     /** Python 워커 콜백 — 데이터 수집 완료 */
     void onGenerateDone(Long projectId, String htmlUrl, Map<String, String> script, String title, String thumbnailUrl);
 

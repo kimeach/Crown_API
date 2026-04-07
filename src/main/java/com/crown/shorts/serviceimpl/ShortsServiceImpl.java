@@ -691,6 +691,53 @@ public class ShortsServiceImpl implements ShortsService {
         return url.toString();
     }
 
+    // ── 배치 스케줄 ──────────────────────────────────────────────────
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getSchedules(Long memberId) {
+        Map<String, Object> result = callWorkerJson("GET", "/schedule?member_id=" + memberId, null);
+        Object data = result.get("data");
+        return data instanceof List ? (List<Map<String, Object>>) data : List.of();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> createSchedule(Long memberId, Map<String, Object> body) {
+        body = new java.util.HashMap<>(body);
+        body.put("member_id", memberId);
+        Map<String, Object> result = callWorkerJson("POST", "/schedule", body);
+        Object data = result.get("data");
+        return data instanceof Map ? (Map<String, Object>) data : Map.of();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getSchedule(Long scheduleId) {
+        Map<String, Object> result = callWorkerJson("GET", "/schedule/" + scheduleId, null);
+        Object data = result.get("data");
+        return data instanceof Map ? (Map<String, Object>) data : Map.of();
+    }
+
+    @Override
+    public Map<String, Object> updateSchedule(Long scheduleId, Map<String, Object> body) {
+        callWorkerJson("PUT", "/schedule/" + scheduleId, body);
+        return Map.of("updated", true);
+    }
+
+    @Override
+    public void deleteSchedule(Long scheduleId) {
+        callWorkerJson("DELETE", "/schedule/" + scheduleId, null);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> toggleSchedule(Long scheduleId) {
+        Map<String, Object> result = callWorkerJson("PATCH", "/schedule/" + scheduleId + "/toggle", null);
+        Object data = result.get("data");
+        return data instanceof Map ? (Map<String, Object>) data : Map.of();
+    }
+
     // ── 내부 유틸 ──────────────────────────────────────────────────
 
     private void callWorker(String method, String path, Map<String, Object> body) {

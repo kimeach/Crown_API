@@ -474,6 +474,62 @@ public class ShortsRestController {
         ));
     }
 
+    // ── 배치 스케줄 ─────────────────────────────────────────────────
+
+    /** 내 스케줄 목록 */
+    @GetMapping("/schedule")
+    public ApiResponse<List<Map<String, Object>>> getSchedules(@AuthenticationPrincipal FirebaseToken token) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.getSchedules(memberId));
+    }
+
+    /** 스케줄 생성 */
+    @PostMapping("/schedule")
+    public ApiResponse<Map<String, Object>> createSchedule(
+            @AuthenticationPrincipal FirebaseToken token,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        return ApiResponse.ok(shortsService.createSchedule(memberId, body));
+    }
+
+    /** 스케줄 단건 조회 */
+    @GetMapping("/schedule/{id}")
+    public ApiResponse<Map<String, Object>> getSchedule(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long id) {
+        memberService.findByGoogleId(token.getUid()); // 인증 확인
+        return ApiResponse.ok(shortsService.getSchedule(id));
+    }
+
+    /** 스케줄 수정 */
+    @PutMapping("/schedule/{id}")
+    public ApiResponse<Map<String, Object>> updateSchedule(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+        memberService.findByGoogleId(token.getUid());
+        return ApiResponse.ok(shortsService.updateSchedule(id, body));
+    }
+
+    /** 스케줄 삭제 */
+    @DeleteMapping("/schedule/{id}")
+    public ApiResponse<Void> deleteSchedule(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long id) {
+        memberService.findByGoogleId(token.getUid());
+        shortsService.deleteSchedule(id);
+        return ApiResponse.ok(null);
+    }
+
+    /** 스케줄 활성/비활성 토글 */
+    @PatchMapping("/schedule/{id}/toggle")
+    public ApiResponse<Map<String, Object>> toggleSchedule(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long id) {
+        memberService.findByGoogleId(token.getUid());
+        return ApiResponse.ok(shortsService.toggleSchedule(id));
+    }
+
     // ── 예외 처리 ───────────────────────────────────────────────────
 
     /** 사용량 초과 시 402 Payment Required */
