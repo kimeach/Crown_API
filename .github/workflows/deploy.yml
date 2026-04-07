@@ -15,11 +15,12 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: gradle
 
       - name: Build JAR
         run: |
           chmod +x gradlew
-          ./gradlew build -x test
+          ./gradlew build -x test --build-cache
 
       - name: Copy JAR to server
         uses: appleboy/scp-action@v0.1.7
@@ -39,7 +40,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             bash /root/app/start-crown.sh
-            sleep 25
+            sleep 15
             if kill -0 $(cat /root/app/crown_api.pid) 2>/dev/null; then
               echo "Java API 재시작 완료 PID:$(cat /root/app/crown_api.pid)"
             else
