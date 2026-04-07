@@ -224,6 +224,32 @@ public class AdminController {
             result.put("worker_errors", List.of());
         }
 
+        // Java API 상태 (자기 자신)
+        Runtime rt = Runtime.getRuntime();
+        long usedMb  = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
+        long totalMb = rt.totalMemory() / 1024 / 1024;
+        long maxMb   = rt.maxMemory()   / 1024 / 1024;
+        long uptimeSec = java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime() / 1000;
+        String uptimeStr = String.format("%dh %dm %ds", uptimeSec/3600, (uptimeSec%3600)/60, uptimeSec%60);
+        result.put("java", Map.of(
+            "status",    "ok",
+            "mem_used",  usedMb  + " MB",
+            "mem_total", totalMb + " MB",
+            "mem_max",   maxMb   + " MB",
+            "uptime",    uptimeStr,
+            "java_version", System.getProperty("java.version")
+        ));
+
+        // Crown API 최근 에러 5건
+        try {
+            List<Map<String, Object>> apiErrors = jdbcTemplate.queryForList(
+                "SELECT path, message, created_at FROM error_log " +
+                "WHERE source='crown_api' ORDER BY created_at DESC LIMIT 5");
+            result.put("api_errors", apiErrors);
+        } catch (Exception e) {
+            result.put("api_errors", List.of());
+        }
+
         return result;
     }
 
