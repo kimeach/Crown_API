@@ -345,4 +345,134 @@ public class AdminController {
         jdbcTemplate.update("DELETE FROM sm_feature_roadmap WHERE id = ?", id);
         return Map.of("message", "삭제 완료");
     }
+
+    // 기획 제안 → 기획으로 올리기
+    @PostMapping("/roadmap/{id}/promote")
+    public Map<String, Object> promoteToPlanning(@PathVariable Long id) {
+        Map<String, Object> item = jdbcTemplate.queryForMap(
+            "SELECT feature_name, implementation_desc, difficulty, reference_service FROM sm_feature_roadmap WHERE id = ?", id);
+        jdbcTemplate.update(
+            "INSERT INTO sm_planning (title, description, category, status, source, proposal_id) VALUES (?, ?, ?, '아이디어', 'proposal', ?)",
+            item.get("feature_name"), item.get("implementation_desc"), item.get("reference_service"), id);
+        jdbcTemplate.update("UPDATE sm_feature_roadmap SET status = '기획이관' WHERE id = ?", id);
+        Long planId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        return Map.of("planning_id", planId, "message", "기획으로 이관됨");
+    }
+
+    // ── 기획 ────────────────────────────────────────────────────────────
+
+    @GetMapping("/planning")
+    public Map<String, Object> getPlanning(
+            @RequestParam(defaultValue = "") String status,
+            @RequestParam(defaultValue = "") String category) {
+
+        StringBuilder where = new StringBuilder("WHERE 1=1");
+        if (!status.isBlank())   where.append(" AND status = '").append(status.replace("'","")).append("'");
+        if (!category.isBlank()) where.append(" AND category = '").append(category.replace("'","")).append("'");
+
+        List<Map<String, Object>> items = jdbcTemplate.queryForList(
+            "SELECT p.*, " +
+            "  (SELECT COUNT(*) FROM sm_dev_task WHERE planning_id = p.id) AS task_total, " +
+            "  (SELECT COUNT(*) FROM sm_dev_task WHERE planning_id = p.id AND status = '완료') AS task_done " +
+            "FROM sm_planning p " + where + " ORDER BY priority ASC, created_at DESC");
+
+        Map<String, Object> stats = jdbcTemplate.queryForMap(
+            "SELECT COUNT(*) AS total, " +
+            "  SUM(status='아이디어') AS idea, SUM(status='기획중') AS planning, " +
+            "  SUM(status='확정') AS confirmed, SUM(status='진행중') AS in_progress, " +
+            "  SUM(status='완료') AS done, SUM(status='보류') AS held " +
+            "FROM sm_planning");
+
+        return Map.of("items", items, "stats", stats);
+    }
+
+    @PostMapping("/planning")
+    public Map<String, Object> createPlanning(@RequestBody Map<String, Object> body) {
+        jdbcTemplate.update(
+            "INSERT INTO sm_planning (title, description, category, status, priority, target_date, source) " +
+            "VALUES (?, ?, ?, ?, ?, ?, 'manual')",
+            body.get("title"), body.getOrDefault("description",""), body.getOrDefault("category","기타"),
+            body.getOrDefault("status","아이디어"), body.getOrDefault("priority", 3),
+            body.get("target_date"));
+        Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        return Map.of("id", id, "message", "기획 생성 완료");
+    }
+
+    @PatchMapping("/planning/{id}")
+    public Map<String, Object> updatePlanning(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        jdbcTemplate.update(
+            "UPDATE sm_planning SET title=COALESCE(?,title), description=COALESCE(?,description), " +
+            "  category=COALESCE(?,category), status=COALESCE(?,status), priority=COALESCE(?,priority), " +
+            "  target_date=COALESCE(?,target_date), updated_at=NOW() WHERE id=?",
+            body.get("title"), body.get("description"), body.get("category"),
+            body.get("status"), body.get("priority"), body.get("target_date"), id);
+        return Map.of("message", "기획 수정 완료");
+    }
+
+    @DeleteMapping("/planning/{id}")
+    public Map<String, Object> deletePlanning(@PathVariable Long id) {
+        jdbcTemplate.update("DELETE FROM sm_dev_task WHERE planning_id = ?", id);
+        jdbcTemplate.update("DELETE FROM sm_planning WHERE id = ?", id);
+        return Map.of("message", "삭제 완료");
+    }
+
+    // ── 개발 태스크 ──────────────────────────────────────────────────────
+
+    @GetMapping("/planning/{planningId}/tasks")
+    public Map<String, Object> getDevTasks(@PathVariable Long planningId) {
+        List<Map<String, Object>> tasks = jdbcTemplate.queryForList(
+            "SELECT * FROM sm_dev_task WHERE planning_id = ? ORDER BY priority ASC, created_at ASC", planningId);
+
+        Map<String, Object> stats = jdbcTemplate.queryForMap(
+            "SELECT COUNT(*) AS total, " +
+            "  SUM(status='대기') AS waiting, SUM(status='진행중') AS in_progress, " +
+            "  SUM(status='완료') AS done, SUM(status='보류') AS held, " +
+            "  SUM(estimated_hours) AS total_hours, SUM(actual_hours) AS actual_hours, " +
+            "  SUM(auto_assignable=1) AS auto_count " +
+            "FROM sm_dev_task WHERE planning_id = ?", planningId);
+
+        Map<String, Object> planning = jdbcTemplate.queryForMap(
+            "SELECT id, title, status, category, target_date FROM sm_planning WHERE id = ?", planningId);
+
+        return Map.of("tasks", tasks, "stats", stats, "planning", planning);
+    }
+
+    @PostMapping("/planning/{planningId}/tasks")
+    public Map<String, Object> createDevTask(@PathVariable Long planningId, @RequestBody Map<String, Object> body) {
+        jdbcTemplate.update(
+            "INSERT INTO sm_dev_task (planning_id, title, description, category, status, priority, " +
+            "  estimated_hours, auto_assignable, due_date) VALUES (?, ?, ?, ?, '대기', ?, ?, ?, ?)",
+            planningId, body.get("title"), body.getOrDefault("description",""),
+            body.getOrDefault("category","frontend"), body.getOrDefault("priority", 3),
+            body.get("estimated_hours"), body.getOrDefault("auto_assignable", false),
+            body.get("due_date"));
+        Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        return Map.of("id", id, "message", "태스크 생성 완료");
+    }
+
+    @PatchMapping("/planning/tasks/{taskId}")
+    public Map<String, Object> updateDevTask(@PathVariable Long taskId, @RequestBody Map<String, Object> body) {
+        String status = (String) body.get("status");
+        if ("완료".equals(status)) {
+            jdbcTemplate.update(
+                "UPDATE sm_dev_task SET status=?, actual_hours=COALESCE(?,actual_hours), completed_at=NOW(), updated_at=NOW() WHERE id=?",
+                status, body.get("actual_hours"), taskId);
+        } else {
+            jdbcTemplate.update(
+                "UPDATE sm_dev_task SET title=COALESCE(?,title), description=COALESCE(?,description), " +
+                "  category=COALESCE(?,category), status=COALESCE(?,status), priority=COALESCE(?,priority), " +
+                "  estimated_hours=COALESCE(?,estimated_hours), auto_assignable=COALESCE(?,auto_assignable), " +
+                "  due_date=COALESCE(?,due_date), updated_at=NOW() WHERE id=?",
+                body.get("title"), body.get("description"), body.get("category"), body.get("status"),
+                body.get("priority"), body.get("estimated_hours"), body.get("auto_assignable"),
+                body.get("due_date"), taskId);
+        }
+        return Map.of("message", "태스크 수정 완료");
+    }
+
+    @DeleteMapping("/planning/tasks/{taskId}")
+    public Map<String, Object> deleteDevTask(@PathVariable Long taskId) {
+        jdbcTemplate.update("DELETE FROM sm_dev_task WHERE id = ?", taskId);
+        return Map.of("message", "삭제 완료");
+    }
 }
