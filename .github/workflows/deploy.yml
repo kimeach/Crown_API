@@ -38,23 +38,13 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            pkill -f "Crown_API-0.0.1-SNAPSHOT.jar" 2>/dev/null || true
-            kill $(cat /root/app/crown_api.pid) 2>/dev/null || true
-            sleep 3
-            cd /root/app
-            SLACK_ERRORS_WEBHOOK="${{ secrets.SLACK_ERRORS_WEBHOOK }}" \
-            FIREBASE_CREDENTIAL_PATH=/root/app/firebase-service-account2.json \
-            nohup java -Xms128m -Xmx300m \
-              -Dspring.config.additional-location=file:/root/app/ \
-              -jar Crown_API-0.0.1-SNAPSHOT.jar \
-              --spring.profiles.active=prod > crown_api.log 2>&1 &
-            echo $! > crown_api.pid
-            sleep 15
-            if kill -0 $(cat crown_api.pid) 2>/dev/null; then
-              echo "Java API 재시작 완료 PID:$(cat crown_api.pid)"
+            bash /root/app/start-crown.sh
+            sleep 25
+            if kill -0 $(cat /root/app/crown_api.pid) 2>/dev/null; then
+              echo "Java API 재시작 완료 PID:$(cat /root/app/crown_api.pid)"
             else
               echo "ERROR: Java API 시작 실패"
-              tail -30 crown_api.log
+              tail -30 /root/app/crown_api.log
               exit 1
             fi
 
