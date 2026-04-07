@@ -84,7 +84,7 @@ public class FeatureProposalScheduler {
         }
         try {
             String prompt = buildPrompt(trendingContext);
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + geminiApiKey;
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
 
             Map<String, Object> body = Map.of(
                 "contents", List.of(Map.of(
@@ -224,17 +224,15 @@ public class FeatureProposalScheduler {
                 jdbcTemplate.update(
                     "INSERT INTO sm_feature_roadmap " +
                     "(proposal_date, feature_name, reference_service, implementation_desc, " +
-                    " difficulty, estimated_time, priority, auto_developable, auto_dev_reason, status) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '검토중')",
+                    " difficulty, priority, auto_developable, status) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, '검토중')",
                     LocalDate.now(),
                     p.getOrDefault("기능명", ""),
                     p.getOrDefault("참고서비스", ""),
                     p.getOrDefault("구현방법", ""),
                     p.getOrDefault("난이도", ""),
-                    p.getOrDefault("예상시간", ""),
-                    priority++ + "순위",
-                    autoOk,
-                    p.getOrDefault("자동개발불가이유", ""));
+                    priority++,
+                    autoOk);
                 log.info("[FeatureProposal] DB 저장 완료: {}", p.get("기능명"));
             } catch (Exception e) {
                 log.error("[FeatureProposal] DB 저장 실패: {}", e.getMessage());
