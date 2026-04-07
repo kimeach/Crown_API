@@ -453,6 +453,41 @@ public class AdminController {
 
     // ── 개발 태스크 ──────────────────────────────────────────────────────
 
+    @GetMapping("/dev-tasks")
+    public Map<String, Object> getAllDevTasks(
+            @RequestParam(defaultValue = "") String status,
+            @RequestParam(defaultValue = "") String category,
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "") String ccr,
+            @RequestParam(defaultValue = "") String fromDate,
+            @RequestParam(defaultValue = "") String toDate) {
+
+        StringBuilder where = new StringBuilder("WHERE 1=1");
+        if (!status.isBlank())   where.append(" AND t.status = '").append(status.replace("'","")).append("'");
+        if (!category.isBlank()) where.append(" AND t.category = '").append(category.replace("'","")).append("'");
+        if ("1".equals(ccr))     where.append(" AND t.auto_assignable = 1");
+        if (!fromDate.isBlank()) where.append(" AND DATE(t.created_at) >= '").append(fromDate.replace("'","")).append("'");
+        if (!toDate.isBlank())   where.append(" AND DATE(t.created_at) <= '").append(toDate.replace("'","")).append("'");
+        if (!search.isBlank()) {
+            String s = search.replace("'","").replace("\\","");
+            where.append(" AND (t.title LIKE '%").append(s).append("%' OR t.description LIKE '%").append(s).append("%')");
+        }
+
+        List<Map<String, Object>> tasks = jdbcTemplate.queryForList(
+            "SELECT t.*, p.title AS planning_title, p.status AS planning_status " +
+            "FROM sm_dev_task t JOIN sm_planning p ON t.planning_id = p.id " +
+            where + " ORDER BY t.priority ASC, t.created_at DESC");
+
+        Map<String, Object> stats = jdbcTemplate.queryForMap(
+            "SELECT COUNT(*) AS total, " +
+            "  SUM(t.status='대기') AS waiting, SUM(t.status='진행중') AS in_progress, " +
+            "  SUM(t.status='완료') AS done, SUM(t.status='보류') AS held, " +
+            "  COALESCE(SUM(t.estimated_hours),0) AS total_hours " +
+            "FROM sm_dev_task t JOIN sm_planning p ON t.planning_id = p.id " + where);
+
+        return Map.of("tasks", tasks, "stats", stats);
+    }
+
     @GetMapping("/planning/{planningId}/tasks")
     public Map<String, Object> getDevTasks(@PathVariable Long planningId) {
         List<Map<String, Object>> tasks = jdbcTemplate.queryForList(
