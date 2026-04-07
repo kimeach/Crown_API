@@ -545,4 +545,61 @@ public class AdminController {
         jdbcTemplate.update("DELETE FROM sm_dev_task WHERE id = ?", taskId);
         return Map.of("message", "삭제 완료");
     }
+
+    // ── 느린 API TOP 10 ────────────────────────────────────────────────
+
+    /**
+     * 어제(CURDATE-1) 기준 평균 응답시간 TOP 10 엔드포인트
+     * - 최소 5회 이상 호출된 경우만 집계
+     * - duration_ms NULL 제외
+     */
+    @GetMapping("/slow-apis")
+    public Map<String, Object> getSlowApis(
+            @RequestParam(defaultValue = "1") int days,
+            @RequestParam(defaultValue = "10") int limit) {
+
+        String sql =
+            "SELECT " +
+            "  path, " +
+            "  method, " +
+            "  COUNT(*) AS call_count, " +
+            "  ROUND(AVG(duration_ms), 0) AS avg_ms, " +
+            "  MAX(duration_ms) AS max_ms, " +
+            "  MIN(duration_ms) AS min_ms, " +
+            "  ROUND(STDDEV(duration_ms), 0) AS stddev_ms, " +
+            "  SUM(CASE WHEN duration_ms > 1000 THEN 1 ELSE 0 END) AS over_1s_count, " +
+            "  SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) AS error_count " +
+            "FROM access_log " +
+            "WHERE created_at >= NOW() - INTERVAL ? DAY " +
+            "  AND duration_ms IS NOT NULL " +
+            "GROUP BY path, method " +
+            "HAVING call_count >= 5 " +
+            "ORDER BY avg_ms DESC " +
+            "LIMIT ?";
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, days, limit);
+
+        // 임계치 분류
+        List<Map<String, Object>> critical = new ArrayList<>();  // > 2000ms
+        List<Map<String, Object>> warning  = new ArrayList<>();  // 500~2000ms
+        List<Map<String, Object>> normal   = new ArrayList<>();  // < 500ms
+
+        for (Map<String, Object> row : rows) {
+            long avg = row.get("avg_ms") != null ? ((Number) row.get("avg_ms")).longValue() : 0;
+            if (avg >= 2000)      critical.add(row);
+            else if (avg >= 500)  warning.add(row);
+            else                  normal.add(row);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("period_days", days);
+        result.put("total", rows.size());
+        result.put("critical_count", critical.size());
+        result.put("warning_count",  warning.size());
+        result.put("top10", rows);
+        result.put("critical", critical);
+        result.put("warning",  warning);
+        result.put("normal",   normal);
+        return result;
+    }
 }
