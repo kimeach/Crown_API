@@ -1,5 +1,6 @@
 -- 색상 테마 템플릿 테이블 (기본 32개 + 사용자 커스텀)
-CREATE TABLE IF NOT EXISTS sm_color_theme_template (
+
+CREATE TABLE IF NOT EXISTS crown_db.sm_color_theme_template (
   template_id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(255) NOT NULL COMMENT '템플릿명 (예: Hero - Blue Bold)',
   description TEXT COMMENT '템플릿 설명',

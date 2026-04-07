@@ -35,6 +35,7 @@ public class SecurityConfig {
                                  "/api/shorts/internal/**", "/health",
                                  "/api/inquiry/guest",
                                  "/api/templates", "/api/templates/**",
+                                 "/api/color-theme-templates", "/api/color-theme-templates/**",
                                  "/api/shorts/bgm", "/api/shorts/bgm/**").permitAll()
                 .anyRequest().authenticated()
             )

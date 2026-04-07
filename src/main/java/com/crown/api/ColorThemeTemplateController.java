@@ -10,8 +10,8 @@ import java.util.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/templates")
-public class TemplateController {
+@RequestMapping("/api/color-theme-templates")
+public class ColorThemeTemplateController {
 
     private final JdbcTemplate jdbcTemplate;
 

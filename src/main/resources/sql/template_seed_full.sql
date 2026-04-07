@@ -2,7 +2,7 @@
 -- 테이블명: sm_color_theme_template
 -- 컬럼: template_id, name, description, layout, color_theme, accent, highlight, bg, text_color, circle1, circle2, font_family, google_fonts_url, is_system, created_by_user_id, is_public, preview_html, usage_count, created_at, updated_at
 
-INSERT INTO sm_color_theme_template
+INSERT INTO crown_db.sm_color_theme_template
 (name, description, layout, color_theme, accent, highlight, bg, text_color, circle1, circle2, font_family, google_fonts_url, is_system, created_by_user_id, is_public, usage_count)
 VALUES
 -- Hero 레이아웃 (template_01 ~ 04)
