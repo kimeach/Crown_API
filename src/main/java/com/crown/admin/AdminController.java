@@ -9,7 +9,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.lang.management.ManagementFactory;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 관리자 API (/api/admin/**)
@@ -37,48 +39,49 @@ public class AdminController {
     @GetMapping("/dashboard")
     public Map<String, Object> getDashboard(@RequestParam(defaultValue = "7") int days) {
 
-        List<Map<String, Object>> dailyActive = jdbcTemplate.queryForList(
-            "SELECT DATE(created_at) AS date, COUNT(DISTINCT member_id) AS dau " +
-            "FROM access_log WHERE created_at >= NOW() - INTERVAL ? DAY AND member_id IS NOT NULL " +
-            "GROUP BY DATE(created_at) ORDER BY date", days);
+        // access_log 3회 스캔 → 1회로 합치기
+        CompletableFuture<List<Map<String, Object>>> cfDaily = CompletableFuture.supplyAsync(() ->
+            jdbcTemplate.queryForList(
+                "SELECT DATE(created_at) AS date, " +
+                "  COUNT(DISTINCT member_id) AS dau, " +
+                "  COUNT(*) AS requests, " +
+                "  SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) AS errors " +
+                "FROM access_log WHERE created_at >= NOW() - INTERVAL ? DAY " +
+                "GROUP BY DATE(created_at) ORDER BY date", days));
 
-        List<Map<String, Object>> dailyRequests = jdbcTemplate.queryForList(
-            "SELECT DATE(created_at) AS date, COUNT(*) AS requests " +
-            "FROM access_log WHERE created_at >= NOW() - INTERVAL ? DAY " +
-            "GROUP BY DATE(created_at) ORDER BY date", days);
+        CompletableFuture<Map<String, Object>> cfSummary = CompletableFuture.supplyAsync(() ->
+            jdbcTemplate.queryForMap(
+                "SELECT " +
+                "  (SELECT COUNT(DISTINCT member_id) FROM access_log WHERE created_at >= NOW() - INTERVAL 1 DAY AND member_id IS NOT NULL) AS dau_today, " +
+                "  (SELECT COUNT(*) FROM access_log WHERE created_at >= NOW() - INTERVAL 1 DAY) AS requests_today, " +
+                "  (SELECT COUNT(*) FROM error_log WHERE created_at >= NOW() - INTERVAL 1 DAY) AS errors_today, " +
+                "  (SELECT COUNT(*) FROM member) AS total_members, " +
+                "  (SELECT COUNT(*) FROM sm_project) AS total_projects, " +
+                "  (SELECT COUNT(*) FROM sm_project WHERE status = 'done') AS done_projects, " +
+                "  (SELECT COUNT(*) FROM sm_job WHERE status = 'running') AS running_jobs"));
 
-        List<Map<String, Object>> dailyErrors = jdbcTemplate.queryForList(
-            "SELECT DATE(created_at) AS date, COUNT(*) AS total, " +
-            "  SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) AS errors " +
-            "FROM access_log WHERE created_at >= NOW() - INTERVAL ? DAY " +
-            "GROUP BY DATE(created_at) ORDER BY date", days);
+        CompletableFuture<List<Map<String, Object>>> cfSlowApis = CompletableFuture.supplyAsync(() ->
+            jdbcTemplate.queryForList(
+                "SELECT path, COUNT(*) AS count, ROUND(AVG(duration_ms)) AS avg_ms, MAX(duration_ms) AS max_ms " +
+                "FROM access_log WHERE created_at >= NOW() - INTERVAL ? DAY AND duration_ms IS NOT NULL " +
+                "GROUP BY path ORDER BY avg_ms DESC LIMIT 10", days));
 
-        Map<String, Object> summary = jdbcTemplate.queryForMap(
-            "SELECT " +
-            "  (SELECT COUNT(DISTINCT member_id) FROM access_log WHERE created_at >= NOW() - INTERVAL 1 DAY AND member_id IS NOT NULL) AS dau_today, " +
-            "  (SELECT COUNT(*) FROM access_log WHERE created_at >= NOW() - INTERVAL 1 DAY) AS requests_today, " +
-            "  (SELECT COUNT(*) FROM error_log WHERE created_at >= NOW() - INTERVAL 1 DAY) AS errors_today, " +
-            "  (SELECT COUNT(*) FROM member) AS total_members, " +
-            "  (SELECT COUNT(*) FROM sm_project) AS total_projects, " +
-            "  (SELECT COUNT(*) FROM sm_project WHERE status = 'done') AS done_projects, " +
-            "  (SELECT COUNT(*) FROM sm_job WHERE status = 'running') AS running_jobs");
+        CompletableFuture<List<Map<String, Object>>> cfErrors = CompletableFuture.supplyAsync(() ->
+            jdbcTemplate.queryForList(
+                "SELECT log_id, source, level, path, LEFT(message,200) AS message, created_at " +
+                "FROM error_log ORDER BY log_id DESC LIMIT 20"));
 
-        List<Map<String, Object>> slowApis = jdbcTemplate.queryForList(
-            "SELECT path, COUNT(*) AS count, ROUND(AVG(duration_ms)) AS avg_ms, MAX(duration_ms) AS max_ms " +
-            "FROM access_log WHERE created_at >= NOW() - INTERVAL ? DAY AND duration_ms IS NOT NULL " +
-            "GROUP BY path ORDER BY avg_ms DESC LIMIT 10", days);
+        CompletableFuture.allOf(cfDaily, cfSummary, cfSlowApis, cfErrors).join();
 
-        List<Map<String, Object>> recentErrors = jdbcTemplate.queryForList(
-            "SELECT log_id, source, level, path, LEFT(message,200) AS message, created_at " +
-            "FROM error_log ORDER BY log_id DESC LIMIT 20");
+        List<Map<String, Object>> daily = cfDaily.join();
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("summary",       summary);
-        result.put("dailyActive",   dailyActive);
-        result.put("dailyRequests", dailyRequests);
-        result.put("dailyErrors",   dailyErrors);
-        result.put("slowApis",      slowApis);
-        result.put("recentErrors",  recentErrors);
+        result.put("summary",       cfSummary.join());
+        result.put("dailyActive",   daily);
+        result.put("dailyRequests", daily);
+        result.put("dailyErrors",   daily);
+        result.put("slowApis",      cfSlowApis.join());
+        result.put("recentErrors",  cfErrors.join());
         return result;
     }
 
