@@ -390,17 +390,23 @@ public class AdminController {
     @GetMapping("/planning")
     public Map<String, Object> getPlanning(
             @RequestParam(defaultValue = "") String status,
-            @RequestParam(defaultValue = "") String category) {
+            @RequestParam(defaultValue = "") String category,
+            @RequestParam(defaultValue = "") String year,
+            @RequestParam(defaultValue = "") String month,
+            @RequestParam(defaultValue = "") String day) {
 
         StringBuilder where = new StringBuilder("WHERE 1=1");
-        if (!status.isBlank())   where.append(" AND status = '").append(status.replace("'","")).append("'");
-        if (!category.isBlank()) where.append(" AND category = '").append(category.replace("'","")).append("'");
+        if (!status.isBlank())   where.append(" AND p.status = '").append(status.replace("'","")).append("'");
+        if (!category.isBlank()) where.append(" AND p.category = '").append(category.replace("'","")).append("'");
+        if (!day.isBlank())      where.append(" AND DATE(p.created_at) = '").append(day.replace("'","")).append("'");
+        else if (!month.isBlank()) where.append(" AND DATE_FORMAT(p.created_at,'%Y-%m') = '").append(month.replace("'","")).append("'");
+        else if (!year.isBlank()) where.append(" AND YEAR(p.created_at) = ").append(year.replaceAll("[^0-9]",""));
 
         List<Map<String, Object>> items = jdbcTemplate.queryForList(
             "SELECT p.*, " +
             "  (SELECT COUNT(*) FROM sm_dev_task WHERE planning_id = p.id) AS task_total, " +
             "  (SELECT COUNT(*) FROM sm_dev_task WHERE planning_id = p.id AND status = '완료') AS task_done " +
-            "FROM sm_planning p " + where + " ORDER BY priority ASC, created_at DESC");
+            "FROM sm_planning p " + where + " ORDER BY p.priority ASC, p.created_at DESC");
 
         Map<String, Object> stats = jdbcTemplate.queryForMap(
             "SELECT COUNT(*) AS total, " +
