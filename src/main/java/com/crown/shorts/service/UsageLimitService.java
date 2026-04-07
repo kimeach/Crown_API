@@ -14,7 +14,7 @@ public class UsageLimitService {
 
     private final UsageMapper usageMapper;
 
-    public static final int FREE_MONTHLY_LIMIT = 5;  // 무료: 월 5회
+    public static final int FREE_MONTHLY_LIMIT = 10000;  // 무료: 월 10000회
 
     /**
      * 이번 달 사용량 확인 후 초과 시 예외 발생
