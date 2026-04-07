@@ -322,3 +322,33 @@ Mapper XML은 `src/main/resources/mapper/{게임명}/` 에 추가.
 - [ ] **대전 기록 상세**: 리플레이용 game_move 조회 API 미구현
 - [ ] **회원 탈퇴**: 회원 삭제 API 없음
 - [ ] **sm_project thumbnail**: 영상 썸네일 URL 저장 컬럼 고려
+
+---
+
+## DB 작업 규칙
+
+### SQL 쿼리 작성 시 명시성 (필수)
+
+**규칙**: 테이블 명, 컬럼명을 항상 명확히 표기하기
+
+**✅ 좋은 예시**
+```sql
+-- sm_planning 테이블의 id, title, status, category 컬럼 조회
+SELECT id, title, status, category FROM sm_planning 
+WHERE status = '완료';
+
+-- sm_dev_task 테이블에 planning_id, title, estimated_hours INSERT
+INSERT INTO sm_dev_task (planning_id, title, estimated_hours) 
+VALUES (1, '개발 태스크명', 5.0);
+
+-- sm_planning 테이블의 id=29 행 UPDATE
+UPDATE sm_planning SET title = '새 제목' WHERE id = 29;
+```
+
+**❌ 피할 것**
+```sql
+SELECT * FROM sm_planning;  -- 컬럼 명시 없음
+INSERT INTO table VALUES (...);  -- 테이블명 불명확
+```
+
+**왜**: 운영 중 실수 방지, 여러 테이블 작업 시 혼동 방지, 마이그레이션 추적 용이
