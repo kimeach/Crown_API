@@ -17,6 +17,29 @@ INSERT INTO sm_planning (title, description, category, status, priority, source)
 ('CCR 자동화 시스템', 'claude -p 비대화형 자동 실행, 슬랙 알림, #velona-ideas 채널 명령 처리', '배치자동화', '진행중', 2, 'manual'),
 ('Cafe24 운영 서버 배포', '1GB RAM Cafe24 서버에 Python 워커 + Crown API + Next.js 배포 완성', '인프라', '아이디어', 1, 'manual');
 
+-- ============================================================
+-- Phase 11: 어드민 UI 개선 + 템플릿 시스템 재구조화
+-- ============================================================
+
+-- Phase 11-1: 어드민 프로젝트 관리 개선 (완료)
+INSERT INTO sm_planning (title, description, category, status, priority, source) VALUES
+('어드민 프로젝트 관리 개선',
+ '체크박스 다중 선택, 일괄 삭제(2단계 확인), 영상/PDF/PPT 타입 필터, 상태 필터 통합',
+ 'UI', '완료', 2, 'manual');
+
+-- Phase 11-2: 대시보드 선택 모드 개선 (완료)
+INSERT INTO sm_planning (title, description, category, status, priority, source) VALUES
+('대시보드 일괄 삭제 + 타입 필터',
+ '선택 모드 토글, 카드 다중 선택(체크 인디케이터), 영상/PDF/PPT 타입 필터, 선택된 프로젝트 일괄 삭제(2단계 확인)',
+ 'UI', '완료', 2, 'manual');
+
+-- Phase 11-3: 템플릿 시스템 재구조화 (기획 중)
+INSERT INTO sm_planning (title, description, category, status, priority, source) VALUES
+('템플릿 시스템 재구조화 — 레이아웃 다변화',
+ 'Genspark AI Slides 수준의 20~30개 다양한 템플릿 제공. 현재는 색상만 다르지만, 각 템플릿이 레이아웃 자체가 완전히 달라야 함.
+ 구현: 8가지 레이아웃(hero/magazine/dashboard/card_grid/split/minimal/colorful/photo) × 4가지 색상테마 = 32개 자동 생성',
+ '영상에디터', '기획중', 2, 'manual');
+
 -- Phase 10 미완료 기능 (외부 API 불필요)
 INSERT INTO sm_planning (title, description, category, status, priority, source) VALUES
 ('썸네일 자동 생성', 'Playwright로 첫 슬라이드 캡처 → S3 저장 → DB thumbnail_url 업데이트 (파이프라인 자동 처리)', '영상에디터', '완료', 3, 'manual'),
@@ -56,3 +79,33 @@ INSERT INTO sm_planning (title, description, category, status, priority, source)
 -- (8, 'ccr-run.sh 슬랙 알림 통합', 'infra', '완료', 2, 1.0, 0),
 -- (8, '#velona-ideas 채널 명령 처리 (ccr-ideas-task.md)', 'infra', '진행중', 2, 2.0, 0),
 -- (8, 'session.active 락 파일 충돌 방지', 'infra', '완료', 1, 0.5, 0);
+
+-- Phase 11 태스크 (planning_id는 실제 ID 조회 후 입력)
+-- 어드민 프로젝트 관리 개선 태스크
+-- INSERT INTO sm_dev_task (planning_id, title, category, status, priority, estimated_hours, due_date) VALUES
+-- ((SELECT id FROM sm_planning WHERE title LIKE '어드민 프로젝트 관리 개선%'),
+--  'app/admin/projects/page.tsx — 다중선택 + 일괄삭제 UI', 'frontend', '완료', 2, 3.0, '2025-04-07'),
+-- ((SELECT id FROM sm_planning WHERE title LIKE '어드민 프로젝트 관리 개선%'),
+--  'API adminApi.deleteProject 기존 확인', 'frontend', '완료', 2, 1.0, '2025-04-07');
+
+-- 대시보드 선택 모드 개선 태스크
+-- INSERT INTO sm_dev_task (planning_id, title, category, status, priority, estimated_hours, due_date) VALUES
+-- ((SELECT id FROM sm_planning WHERE title LIKE '대시보드 일괄 삭제%'),
+--  'app/dashboard/page.tsx — 선택 모드 + 체크박스', 'frontend', '완료', 2, 4.0, '2025-04-07'),
+-- ((SELECT id FROM sm_planning WHERE title LIKE '대시보드 일괄 삭제%'),
+--  '일괄 삭제 액션바 + 2단계 확인 UI', 'frontend', '완료', 2, 3.0, '2025-04-07');
+
+-- 템플릿 시스템 재구조화 태스크
+-- INSERT INTO sm_dev_task (planning_id, title, category, status, priority, estimated_hours, due_date) VALUES
+-- ((SELECT id FROM sm_planning WHERE title LIKE '템플릿 시스템 재구조화%'),
+--  'LAYOUT_TYPES 8가지 정의 + 기본 HTML 골격 작성', 'backend', '대기', 2, 16.0, '2025-04-20'),
+-- ((SELECT id FROM sm_planning WHERE title LIKE '템플릿 시스템 재구조화%'),
+--  'COLOR_THEME 4~5가지 정의 + 폰트 테마', 'backend', '대기', 3, 4.0, '2025-04-20'),
+-- ((SELECT id FROM sm_planning WHERE title LIKE '템플릿 시스템 재구조화%'),
+--  'scripts/us_data_pdf.py 리팩토링 — template_id 동적 처리', 'python', '대기', 2, 8.0, '2025-04-25'),
+-- ((SELECT id FROM sm_planning WHERE title LIKE '템플릿 시스템 재구조화%'),
+--  'Jinja2 기반 동적 HTML 생성', 'python', '대기', 2, 4.0, '2025-04-25'),
+-- ((SELECT id FROM sm_planning WHERE title LIKE '템플릿 시스템 재구조화%'),
+--  'app/dashboard/page.tsx — 템플릿 선택 드롭다운 추가', 'frontend', '대기', 3, 3.0, '2025-05-01'),
+-- ((SELECT id FROM sm_planning WHERE title LIKE '템플릿 시스템 재구조화%'),
+--  '템플릿 렌더링 테스트 + 미세 조정', 'frontend', '대기', 2, 4.0, '2025-05-05');
