@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -19,6 +20,7 @@ public class FeatureProposalScheduler {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${worker.url}")
     private String workerUrl;
@@ -28,12 +30,6 @@ public class FeatureProposalScheduler {
 
     @Value("${slack.ideas.webhook}")
     private String slackIdeasWebhook;
-
-    @Value("${google.sheets.webhook}")
-    private String sheetsWebhook;
-
-    @Value("${google.sheets.token}")
-    private String sheetsToken;
 
     @Value("${gemini.api-key:}")
     private String geminiApiKey;
@@ -56,10 +52,10 @@ public class FeatureProposalScheduler {
             // Step 3: Slack 전송
             sendToSlack(proposals);
 
-            // Step 4: Google Sheets 기록
-            recordToSheets(proposals);
+            // Step 4: DB 저장
+            recordToDb(proposals);
 
-            log.info("[FeatureProposal] 완료 — {}개 제안 전송", proposals.size());
+            log.info("[FeatureProposal] 완료 — {}개 제안 저장", proposals.size());
         } catch (Exception e) {
             log.error("[FeatureProposal] 오류: {}", e.getMessage(), e);
         }
@@ -220,27 +216,28 @@ public class FeatureProposalScheduler {
         }
     }
 
-    private void recordToSheets(List<Map<String, String>> proposals) {
+    private void recordToDb(List<Map<String, String>> proposals) {
         int priority = 1;
         for (Map<String, String> p : proposals) {
             try {
-                Map<String, Object> payload = new LinkedHashMap<>();
-                payload.put("token", sheetsToken);
-                payload.put("type", "feature_roadmap");
-                payload.put("date", LocalDate.now().toString());
-                payload.put("feature_name", p.getOrDefault("기능명", ""));
-                payload.put("source", p.getOrDefault("참고서비스", ""));
-                payload.put("difficulty", p.getOrDefault("난이도", ""));
-                payload.put("estimated_time", p.getOrDefault("예상시간", ""));
-                payload.put("priority", priority++ + "순위");
-                payload.put("status", "검토중");
-
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                restTemplate.postForEntity(sheetsWebhook, new HttpEntity<>(payload, headers), String.class);
-                log.info("[FeatureProposal] Sheets 기록 완료: {}", p.get("기능명"));
+                boolean autoOk = "가능".equals(p.getOrDefault("자동개발", "불가능"));
+                jdbcTemplate.update(
+                    "INSERT INTO sm_feature_roadmap " +
+                    "(proposal_date, feature_name, reference_service, implementation_desc, " +
+                    " difficulty, estimated_time, priority, auto_developable, auto_dev_reason, status) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '검토중')",
+                    LocalDate.now(),
+                    p.getOrDefault("기능명", ""),
+                    p.getOrDefault("참고서비스", ""),
+                    p.getOrDefault("구현방법", ""),
+                    p.getOrDefault("난이도", ""),
+                    p.getOrDefault("예상시간", ""),
+                    priority++ + "순위",
+                    autoOk,
+                    p.getOrDefault("자동개발불가이유", ""));
+                log.info("[FeatureProposal] DB 저장 완료: {}", p.get("기능명"));
             } catch (Exception e) {
-                log.error("[FeatureProposal] Sheets 기록 실패: {}", e.getMessage());
+                log.error("[FeatureProposal] DB 저장 실패: {}", e.getMessage());
             }
         }
     }

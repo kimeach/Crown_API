@@ -269,4 +269,80 @@ public class AdminController {
             "SELECT id, title, LEFT(message, 200) AS message, sent_count, created_at " +
             "FROM announcement ORDER BY id DESC LIMIT 20");
     }
+
+    // ── 기능 로드맵 ───────────────────────────────────────────────────
+
+    @GetMapping("/roadmap")
+    public Map<String, Object> getRoadmap(
+            @RequestParam(defaultValue = "") String status,
+            @RequestParam(defaultValue = "30") int days) {
+
+        String where = days > 0 ? "WHERE proposal_date >= CURDATE() - INTERVAL " + days + " DAY" : "WHERE 1=1";
+        if (!status.isBlank()) where += " AND status = '" + status.replace("'", "") + "'";
+
+        List<Map<String, Object>> items = jdbcTemplate.queryForList(
+            "SELECT id, proposal_date, feature_name, reference_service, implementation_desc, " +
+            "  difficulty, estimated_time, priority, auto_developable, auto_dev_reason, " +
+            "  status, branch, created_at, updated_at " +
+            "FROM sm_feature_roadmap " + where + " ORDER BY proposal_date DESC, priority ASC");
+
+        Map<String, Object> stats = jdbcTemplate.queryForMap(
+            "SELECT " +
+            "  COUNT(*) AS total, " +
+            "  SUM(status = '검토중')   AS reviewing, " +
+            "  SUM(status = '개발중')   AS developing, " +
+            "  SUM(status = '개발완료') AS dev_done, " +
+            "  SUM(status = '배포완료') AS deployed, " +
+            "  SUM(status = '보류')     AS held, " +
+            "  SUM(auto_developable = 1) AS auto_count " +
+            "FROM sm_feature_roadmap");
+
+        List<Map<String, Object>> monthly = jdbcTemplate.queryForList(
+            "SELECT DATE_FORMAT(proposal_date, '%Y-%m') AS month, " +
+            "  COUNT(*) AS proposed, " +
+            "  SUM(status IN ('배포완료')) AS deployed " +
+            "FROM sm_feature_roadmap " +
+            "GROUP BY DATE_FORMAT(proposal_date, '%Y-%m') " +
+            "ORDER BY month DESC LIMIT 6");
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("items",   items);
+        result.put("stats",   stats);
+        result.put("monthly", monthly);
+        return result;
+    }
+
+    @PostMapping("/roadmap")
+    public Map<String, Object> createRoadmapItem(@RequestBody Map<String, Object> body) {
+        jdbcTemplate.update(
+            "INSERT INTO sm_feature_roadmap " +
+            "(proposal_date, feature_name, reference_service, implementation_desc, " +
+            " difficulty, estimated_time, priority, auto_developable, auto_dev_reason, status) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '검토중')",
+            body.get("proposal_date"), body.get("feature_name"), body.get("reference_service"),
+            body.get("implementation_desc"), body.get("difficulty"), body.get("estimated_time"),
+            body.get("priority"), body.getOrDefault("auto_developable", false),
+            body.getOrDefault("auto_dev_reason", ""));
+
+        Long id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        return Map.of("id", id, "message", "생성 완료");
+    }
+
+    @PatchMapping("/roadmap/{id}/status")
+    public Map<String, Object> updateRoadmapStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+        String status = String.valueOf(body.get("status"));
+        String branch = String.valueOf(body.getOrDefault("branch", ""));
+        jdbcTemplate.update(
+            "UPDATE sm_feature_roadmap SET status = ?, branch = ?, updated_at = NOW() WHERE id = ?",
+            status, branch, id);
+        return Map.of("message", "상태 업데이트: " + status);
+    }
+
+    @DeleteMapping("/roadmap/{id}")
+    public Map<String, Object> deleteRoadmapItem(@PathVariable Long id) {
+        jdbcTemplate.update("DELETE FROM sm_feature_roadmap WHERE id = ?", id);
+        return Map.of("message", "삭제 완료");
+    }
 }
