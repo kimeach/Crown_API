@@ -177,6 +177,18 @@ public class ShortsRestController {
         return ApiResponse.ok(shortsService.startRender(projectId, memberId, renderOptions));
     }
 
+    /** 영상 생성 취소 */
+    @PostMapping("/projects/{projectId}/render/cancel")
+    public ApiResponse<Void> cancelRender(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        Long jobId = ((Number) body.get("job_id")).longValue();
+        shortsService.cancelRender(projectId, memberId, jobId);
+        return ApiResponse.ok(null);
+    }
+
     /** 잡 상태 폴링 */
     @GetMapping("/jobs/{jobId}/status")
     public ApiResponse<JobDto> getJobStatus(@PathVariable Long jobId) {

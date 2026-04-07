@@ -237,6 +237,30 @@ public class ShortsServiceImpl implements ShortsService {
     }
 
     @Override
+    public void cancelRender(Long projectId, Long memberId, Long jobId) {
+        ProjectDto project = getProject(projectId, memberId);
+        JobDto job = shortsDao.getJobById(jobId);
+
+        if (job == null || !job.getProjectId().equals(projectId)) {
+            throw new RuntimeException("작업을 찾을 수 없습니다");
+        }
+
+        // 이미 완료되었으면 취소 불가
+        if ("done".equals(job.getStatus()) || "error".equals(job.getStatus())) {
+            throw new RuntimeException("이미 완료된 작업은 취소할 수 없습니다");
+        }
+
+        // 워커에 취소 요청
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("job_id", jobId);
+        callWorker("POST", "/cancel", body);
+
+        // DB 상태 업데이트
+        shortsDao.updateJobStatus(jobId, "cancelled");
+        shortsDao.updateProjectStatus(projectId, "draft");
+    }
+
+    @Override
     public JobDto getJobStatus(Long jobId) {
         return shortsDao.getJobById(jobId);
     }

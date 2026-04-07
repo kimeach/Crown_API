@@ -53,6 +53,9 @@ public interface ShortsService {
     /** 영상 생성 잡 시작 */
     JobDto startRender(Long projectId, Long memberId, Map<String, Object> renderOptions);
 
+    /** 영상 생성 취소 */
+    void cancelRender(Long projectId, Long memberId, Long jobId);
+
     /** AI 대본 재작성 */
     String rewriteScript(Long projectId, Long memberId, String text, String style, String instruction);
 
