@@ -424,6 +424,37 @@ public class ShortsServiceImpl implements ShortsService {
         return stream.collect(java.util.stream.Collectors.toList());
     }
 
+    @Override
+    public List<SfxItemDto> getBgmLibrary(String q) {
+        try {
+            String sql = "SELECT id, name, tags, duration, s3_url FROM sm_bgm";
+            Object[] params;
+            if (q != null && !q.isBlank()) {
+                sql += " WHERE name LIKE ? OR tags LIKE ?";
+                params = new Object[]{"%" + q + "%", "%" + q + "%"};
+            } else {
+                params = new Object[]{};
+            }
+            sql += " ORDER BY id DESC";
+            List<SfxItemDto> rows = jdbcTemplate.query(sql, params, (rs, i) -> {
+                String tagsStr = rs.getString("tags");
+                List<String> tags = new java.util.ArrayList<>();
+                if (tagsStr != null && !tagsStr.isBlank()) {
+                    for (String t : tagsStr.replaceAll("[\\[\\]\"]", "").split(",")) {
+                        String trimmed = t.trim();
+                        if (!trimmed.isEmpty()) tags.add(trimmed);
+                    }
+                }
+                return new SfxItemDto(rs.getInt("id"), rs.getString("name"),
+                        rs.getDouble("duration"), tags, rs.getString("s3_url"));
+            });
+            return rows;
+        } catch (Exception e) {
+            log.warn("sm_bgm DB 조회 실패: {}", e.getMessage());
+            return java.util.Collections.emptyList();
+        }
+    }
+
     // ── 대본 히스토리 ──────────────────────────────────────────────────
 
     @Override

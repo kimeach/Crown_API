@@ -17,6 +17,9 @@ public interface ShortsService {
     /** 무료 효과음 라이브러리 조회 */
     List<SfxItemDto> getSfxLibrary(String q, String tab);
 
+    /** 배경음악 라이브러리 조회 */
+    List<SfxItemDto> getBgmLibrary(String q);
+
     /** 새 프로젝트 생성 후 Python 워커에 데이터 수집 요청 */
     ProjectDto createAndGenerate(Long memberId, String category, String templateId, Map<String, Object> options);
 

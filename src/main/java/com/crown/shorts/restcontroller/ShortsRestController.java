@@ -49,6 +49,13 @@ public class ShortsRestController {
         return ApiResponse.ok(shortsService.getSfxLibrary(q, tab));
     }
 
+    /** 배경음악 라이브러리 조회 */
+    @GetMapping("/bgm")
+    public ApiResponse<List<SfxItemDto>> getBgmLibrary(
+            @RequestParam(required = false) String q) {
+        return ApiResponse.ok(shortsService.getBgmLibrary(q));
+    }
+
     /** 데이터 수집 + 대본 + HTML 생성 요청 */
     @PostMapping("/projects/generate")
     public ApiResponse<ProjectDto> generate(
