@@ -38,6 +38,7 @@ public class AccessLogInterceptor implements HandlerInterceptor {
             String path = request.getRequestURI();
             // 내부 콜백, 헬스체크, 정적자원 제외
             if (path.contains("/internal/") || path.equals("/actuator/health")
+                    || path.equals("/health")
                     || path.startsWith("/favicon")) return;
 
             String method = request.getMethod();
