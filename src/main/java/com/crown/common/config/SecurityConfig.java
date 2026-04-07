@@ -33,7 +33,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/ws/**", "/ws-native/**", "/api/ranking",
                                  "/api/shorts/internal/**", "/health",
-                                 "/api/inquiry/guest").permitAll()
+                                 "/api/inquiry/guest",
+                                 "/api/templates", "/api/templates/**",
+                                 "/api/shorts/bgm", "/api/shorts/bgm/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(firebaseTokenFilter, UsernamePasswordAuthenticationFilter.class);
