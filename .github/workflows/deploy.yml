@@ -55,9 +55,9 @@ jobs:
         run: |
           STATUS="${{ job.status }}"
           if [ "$STATUS" = "success" ]; then
-            MSG="[배포 완료] Crown API (Java)\n시간: $(date '+%Y-%m-%d %H:%M') KST\n커밋: ${{ github.event.head_commit.message }}"
+            MSG="[배포 완료] Crown API (Java)\n시간: $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST\n커밋: ${{ github.event.head_commit.message }}"
           else
-            MSG="[배포 실패] Crown API (Java)\n시간: $(date '+%Y-%m-%d %H:%M') KST\n커밋: ${{ github.event.head_commit.message }}"
+            MSG="[배포 실패] Crown API (Java)\n시간: $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST\n커밋: ${{ github.event.head_commit.message }}"
           fi
           curl -s -X POST -H 'Content-type: application/json' \
             --data "{\"text\":\"$MSG\"}" \
