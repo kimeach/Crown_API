@@ -84,7 +84,7 @@ public class FeatureProposalScheduler {
         }
         try {
             String prompt = buildPrompt(trendingContext);
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent?key=" + geminiApiKey;
 
             Map<String, Object> body = Map.of(
                 "contents", List.of(Map.of(
