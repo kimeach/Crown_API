@@ -103,7 +103,7 @@ public class ShortsServiceImpl implements ShortsService {
     }
 
     @Override
-    public byte[] getTtsPreview(String text, String voice, String rate) {
+    public byte[] getTtsPreview(String text, String voice, String rate, String emotion) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Worker-Secret", workerSecret);
@@ -111,6 +111,9 @@ public class ShortsServiceImpl implements ShortsService {
         body.put("text",  text);
         body.put("voice", voice != null ? voice : "ko-KR-InJoonNeural");
         body.put("rate",  rate  != null ? rate  : "+25%");
+        if (emotion != null && !emotion.isEmpty() && !emotion.equals("default")) {
+            body.put("emotion", emotion);
+        }
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         try {
             ResponseEntity<byte[]> res = restTemplate.exchange(

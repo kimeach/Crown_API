@@ -282,7 +282,7 @@ public class AdminController {
 
         List<Map<String, Object>> items = jdbcTemplate.queryForList(
             "SELECT id, proposal_date, feature_name, reference_service, implementation_desc, " +
-            "  difficulty, estimated_time, priority, auto_developable, auto_dev_reason, " +
+            "  difficulty, priority, auto_developable, " +
             "  status, branch, created_at, updated_at " +
             "FROM sm_feature_roadmap " + where + " ORDER BY proposal_date DESC, priority ASC");
 
