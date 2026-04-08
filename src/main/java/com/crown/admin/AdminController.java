@@ -631,7 +631,9 @@ public class AdminController {
         }
 
         List<Map<String, Object>> tasks = jdbcTemplate.queryForList(
-            "SELECT t.*, p.title AS planning_title, p.status AS planning_status " +
+            "SELECT t.id, t.planning_id, t.title, t.description, t.result_content, t.category, t.status, t.priority, " +
+            "  t.estimated_hours, t.actual_hours, t.auto_assignable, t.due_date, t.completed_at, t.created_at, " +
+            "  p.title AS planning_title, p.status AS planning_status " +
             "FROM sm_dev_task t JOIN sm_planning p ON t.planning_id = p.id " +
             where + " ORDER BY t.priority ASC, t.created_at DESC");
 
