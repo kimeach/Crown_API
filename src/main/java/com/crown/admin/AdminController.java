@@ -429,6 +429,121 @@ public class AdminController {
         }
     }
 
+    // ── 스케줄 관리 ───────────────────────────────────────────────────
+
+    /**
+     * 프론트엔드 대시보드 위젯용 핵심 통계 (상단 4개 위젯)
+     * GET /api/admin/nexus-stats
+     */
+    @GetMapping("/nexus-stats")
+    public Map<String, Object> getNexusStats() {
+        Map<String, Object> data = new LinkedHashMap<>();
+
+        // 1. 실시간 활성 사용자 (최근 10분 내 활동 로그)
+        Integer activeNow = jdbcTemplate.queryForObject(
+            "SELECT COUNT(DISTINCT member_id) FROM access_log WHERE created_at >= NOW() - INTERVAL 10 MINUTE", Integer.class);
+        
+        // 2. 오늘 생성된 쇼츠 수
+        Integer shortsToday = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM sm_project WHERE created_at >= CURDATE() AND video_url IS NOT NULL", Integer.class);
+
+        // 3. 오늘 발생한 치명적 에러 (level='ERROR' 이상)
+        Integer criticalErrors = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM error_log WHERE created_at >= CURDATE() AND level IN ('ERROR', 'FATAL', 'CRITICAL')", Integer.class);
+
+        // 4. 시스템 부하 (평균 응답시간 기준 임시 산출)
+        Double avgMs = jdbcTemplate.queryForObject(
+            "SELECT COALESCE(AVG(duration_ms), 0) FROM access_log WHERE created_at >= NOW() - INTERVAL 1 HOUR", Double.class);
+        String systemLoad = avgMs > 1000 ? "HIGH" : (avgMs > 500 ? "MODERATE" : "NORMAL");
+
+        data.put("active_now",      activeNow != null ? activeNow : 0);
+        data.put("shorts_today",    shortsToday != null ? shortsToday : 0);
+        data.put("critical_errors", criticalErrors != null ? criticalErrors : 0);
+        data.put("system_load",     systemLoad);
+        data.put("overall_health",  (avgMs < 1000 && criticalErrors < 10) ? "100%" : (avgMs > 2000 ? "40%" : "85%"));
+
+        return Map.of("success", true, "data", data);
+    }
+
+    /**
+     * 프론트엔드 AI 과금 현황 조회
+     * GET /api/admin/billing-stats
+     */
+    @GetMapping("/billing-stats")
+    public Map<String, Object> getBillingStats() {
+        Map<String, Object> data = new LinkedHashMap<>();
+
+        // 과금 로그 테이블이 없을 수 있으므로 try-catch로 안전하게 처리
+        try {
+            List<Map<String, Object>> breakdown = jdbcTemplate.queryForList(
+                "SELECT provider, SUM(cost) AS cost, COUNT(*) AS call_count FROM sm_billing_log " +
+                "WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') GROUP BY provider");
+            
+            Double totalNow = jdbcTemplate.queryForObject(
+                "SELECT SUM(cost) FROM sm_billing_log WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')", Double.class);
+            
+            data.put("breakdown", breakdown);
+            data.put("total_now", totalNow != null ? totalNow : 0.0);
+            data.put("estimated_monthly", (totalNow != null ? totalNow : 0.0) * 1.5); // 단순 추정치
+        } catch (Exception e) {
+            // 테이블이 없는 경우 더미 데이터 반환 (에러 방지)
+            data.put("breakdown", List.of(
+                Map.of("provider", "Gemini", "cost", 0.0, "call_count", 0),
+                Map.of("provider", "OpenAI", "cost", 0.0, "call_count", 0)
+            ));
+            data.put("total_now", 0.0);
+            data.put("estimated_monthly", 0.0);
+        }
+
+        return Map.of("success", true, "data", data);
+    }
+
+    /**
+     * 시스템 통합 상태 조회 (기존 /system 과 프론트엔드용 /system-status 통합)
+     * GET /api/admin/system-status
+     */
+    @GetMapping({"/system", "/system-status"})
+    public Map<String, Object> getSystemStatusNew() {
+        return getSystemStatus(); // 기존 상세 로직 호출
+    }
+
+    /**
+     * 프론트엔드 대시보드용 통합 스케줄 현황 조회
+     * GET /api/admin/master-schedule
+     */
+    @GetMapping("/master-schedule")
+    public Map<String, Object> getMasterSchedule() {
+        // 1. 자동 생성 스케줄 (sm_schedule)
+        List<Map<String, Object>> schedules = jdbcTemplate.queryForList(
+            "SELECT id AS `key`, name, CONCAT(frequency, ' ', run_time) AS period, topic AS `desc`, is_active AS is_enabled " +
+            "FROM sm_schedule ORDER BY id ASC");
+
+        // 2. 개발 태스크 큐 (sm_dev_task 중 '대기'/'진행중')
+        List<Map<String, Object>> queue = jdbcTemplate.queryForList(
+            "SELECT t.id, p.title AS plan_title, t.title AS task_title, t.status, t.priority, t.created_at " +
+            "FROM sm_dev_task t JOIN sm_planning p ON t.planning_id = p.id " +
+            "WHERE t.status IN ('대기', '진행중') " +
+            "ORDER BY t.priority ASC, t.created_at ASC LIMIT 20");
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success",   true);
+        result.put("schedules", schedules);
+        result.put("queue",     queue);
+        return result;
+    }
+
+    /**
+     * 마스터 스케줄 활성/비활성 토글
+     * PATCH /api/admin/master-job/{jobKey}/toggle
+     */
+    @PatchMapping("/master-job/{jobKey}/toggle")
+    public Map<String, Object> toggleMasterJob(@PathVariable String jobKey, @RequestBody Map<String, Object> body) {
+        jdbcTemplate.update(
+            "UPDATE sm_schedule SET is_active = 1 - is_active, updated_at = NOW() WHERE id = ?",
+            jobKey);
+        return Map.of("success", true);
+    }
+
     // ── 기획 ────────────────────────────────────────────────────────────
 
     @GetMapping("/planning")
