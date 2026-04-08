@@ -515,7 +515,8 @@ public class AdminController {
     public Map<String, Object> getMasterSchedule() {
         // 1. 자동 생성 스케줄 (sm_schedule)
         List<Map<String, Object>> schedules = jdbcTemplate.queryForList(
-            "SELECT id AS `key`, name, CONCAT(frequency, ' ', run_time) AS period, topic AS `desc`, is_active AS is_enabled " +
+            "SELECT id AS `key`, name, CONCAT(frequency, ' ', run_time) AS period, topic AS `desc`, is_active AS is_enabled, " +
+            "IF(category IN ('data', 'intelligence', 'crypto', 'macro') OR name LIKE '%분석%', 'intelligence', 'coding') AS type " +
             "FROM sm_schedule ORDER BY id ASC");
 
         // 2. 개발 태스크 큐 (sm_dev_task 중 '대기'/'진행중')
