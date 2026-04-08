@@ -32,7 +32,8 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/ws/**", "/ws-native/**", "/api/ranking",
-                                 "/api/shorts/internal/**", "/health",
+                                 "/api/shorts/internal/**", "/api/blog/internal/**",
+                                 "/health",
                                  "/api/inquiry/guest",
                                  "/api/templates", "/api/templates/**",
                                  "/api/color-theme-templates", "/api/color-theme-templates/**",

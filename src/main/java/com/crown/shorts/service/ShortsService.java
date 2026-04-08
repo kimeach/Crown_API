@@ -35,8 +35,8 @@ public interface ShortsService {
     /** 프로젝트 상세 조회 */
     ProjectDto getProject(Long projectId, Long memberId);
 
-    /** 에디터에서 수정한 대본 저장 */
-    void updateScript(Long projectId, Long memberId, Map<String, String> script);
+    /** 에디터에서 수정한 대본 저장 (note: 히스토리 명칭) */
+    void updateScript(Long projectId, Long memberId, Map<String, String> script, String note);
 
     /** 에디터에서 수정한 HTML 저장 (S3 재업로드) */
     void updateHtml(Long projectId, Long memberId, String html);

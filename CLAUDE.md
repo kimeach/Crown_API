@@ -271,10 +271,10 @@ Mapper XML은 `src/main/resources/mapper/{게임명}/` 에 추가.
 ## 연관 프로젝트
 | 프로젝트 | 경로 | 설명 |
 |---------|------|------|
-| Crown API (백엔드) | `C:\work\Crown_API` | 현재 프로젝트 |
-| omok_flutter (앱) | `C:\work\omok_flutter` | 오목 Flutter 앱 |
-| Velona AI (Next.js) | `C:\work\Velonaai` | ShortsMaker 프론트엔드 |
-| Python Worker | `C:\work\python-worker` | 영상 생성 워커 (port 8003) |
+| Crown API (백엔드) | `../Crown_API/` | 현재 프로젝트 |
+| velona-flutter (앱) | `../velona-flutter/` | 모바일 Flutter 앱 |
+| velonaAi-react (웹) | `../velonaAi-react/` | Next.js 웹 프론트엔드 |
+| python-worker | `../python-worker/` | 영상 생성 워커 (port 8003) |
 
 ## 시작 전 필요한 설정
 1. MySQL에 `crown_db` 스키마 생성 (`schema.sql` 실행)

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crown.blog.mapper.BlogMapper">
+
+    <!-- ── ResultMap ── -->
+    <resultMap id="toneMap" type="com.crown.blog.dto.BlogToneDto">
+        <id     property="toneId"          column="tone_id"/>
+        <result property="memberId"        column="member_id"/>
+        <result property="style"           column="style"/>
+        <result property="characteristics" column="characteristics"
+                typeHandler="com.crown.common.typehandler.JsonListStringTypeHandler"/>
+        <result property="sampleText"      column="sample_text"/>
+        <result property="createdAt"       column="created_at"/>
+        <result property="updatedAt"       column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="postMap" type="com.crown.blog.dto.BlogPostDto">
+        <id     property="postId"         column="post_id"/>
+        <result property="memberId"       column="member_id"/>
+        <result property="subject"        column="subject"/>
+        <result property="content"        column="content"/>
+        <result property="mediaUrls"      column="media_urls"
+                typeHandler="com.crown.common.typehandler.JsonListStringTypeHandler"/>
+        <result property="additionalInfo" column="additional_info"/>
+        <result property="platform"       column="platform"/>
+        <result property="status"         column="status"/>
+        <result property="errorMessage"   column="error_message"/>
+        <result property="publishedUrl"   column="published_url"/>
+        <result property="scheduledAt"    column="scheduled_at"/>
+        <result property="publishedAt"    column="published_at"/>
+        <result property="createdAt"      column="created_at"/>
+        <result property="updatedAt"      column="updated_at"/>
+    </resultMap>
+
+    <!-- ══════════════ Tone ══════════════ -->
+
+    <select id="selectToneByMemberId" resultMap="toneMap">
+        SELECT tone_id, member_id, style, characteristics, sample_text, created_at, updated_at
+        FROM sm_blog_tone
+        WHERE member_id = #{memberId}
+    </select>
+
+    <insert id="insertTone" useGeneratedKeys="true" keyProperty="toneId">
+        INSERT INTO sm_blog_tone (member_id, style, characteristics, sample_text)
+        VALUES (#{memberId},
+                #{style},
+                #{characteristics, typeHandler=com.crown.common.typehandler.JsonListStringTypeHandler},
+                #{sampleText})
+    </insert>
+
+    <update id="updateTone">
+        UPDATE sm_blog_tone
+        SET style = #{style},
+            characteristics = #{characteristics, typeHandler=com.crown.common.typehandler.JsonListStringTypeHandler},
+            sample_text = #{sampleText}
+        WHERE member_id = #{memberId}
+    </update>
+
+    <!-- ══════════════ Post ══════════════ -->
+
+    <insert id="insertPost" useGeneratedKeys="true" keyProperty="postId">
+        INSERT INTO sm_blog_post (member_id, subject, media_urls, additional_info, platform, status, scheduled_at)
+        VALUES (#{memberId},
+                #{subject},
+                #{mediaUrls, typeHandler=com.crown.common.typehandler.JsonListStringTypeHandler},
+                #{additionalInfo},
+                #{platform},
+                #{status},
+                #{scheduledAt})
+    </insert>
+
+    <select id="selectPostById" resultMap="postMap">
+        SELECT post_id, member_id, subject, content, media_urls, additional_info,
+               platform, status, error_message, published_url, scheduled_at, published_at,
+               created_at, updated_at
+        FROM sm_blog_post
+        WHERE post_id = #{postId}
+    </select>
+
+    <select id="selectPostsByMemberId" resultMap="postMap">
+        SELECT post_id, member_id, subject, content, media_urls, additional_info,
+               platform, status, error_message, published_url, scheduled_at, published_at,
+               created_at, updated_at
+        FROM sm_blog_post
+        WHERE member_id = #{memberId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updatePostContent">
+        UPDATE sm_blog_post
+        SET content = #{content}, status = #{status}, updated_at = NOW()
+        WHERE post_id = #{postId}
+    </update>
+
+    <update id="updatePostSubject">
+        UPDATE sm_blog_post
+        SET subject = #{subject}, updated_at = NOW()
+        WHERE post_id = #{postId}
+    </update>
+
+    <update id="updatePostStatus">
+        UPDATE sm_blog_post
+        SET status = #{status},
+            error_message = #{errorMessage},
+            updated_at = NOW()
+        WHERE post_id = #{postId}
+    </update>
+
+    <update id="updatePostPublished">
+        UPDATE sm_blog_post
+        SET published_url = #{publishedUrl},
+            status = #{status},
+            published_at = NOW(),
+            updated_at = NOW()
+        WHERE post_id = #{postId}
+    </update>
+
+    <update id="updatePostSchedule">
+        UPDATE sm_blog_post
+        SET scheduled_at = #{scheduledAt},
+            status = #{status},
+            updated_at = NOW()
+        WHERE post_id = #{postId}
+    </update>
+
+    <delete id="deletePost">
+        DELETE FROM sm_blog_post WHERE post_id = #{postId}
+    </delete>
+
+    <select id="selectScheduledPosts" resultMap="postMap">
+        SELECT post_id, member_id, subject, content, media_urls, additional_info,
+               platform, status, error_message, published_url, scheduled_at, published_at,
+               created_at, updated_at
+        FROM sm_blog_post
+        WHERE status = 'scheduled'
+          AND scheduled_at &lt;= NOW()
+        ORDER BY scheduled_at ASC
+    </select>
+
+</mapper>

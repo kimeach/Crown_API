@@ -128,9 +128,12 @@ public class ShortsRestController {
     public ApiResponse<Void> updateScript(
             @AuthenticationPrincipal FirebaseToken token,
             @PathVariable Long projectId,
-            @RequestBody Map<String, String> script) {
+            @RequestBody Map<String, Object> body) {
         Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
-        shortsService.updateScript(projectId, memberId, script);
+        @SuppressWarnings("unchecked")
+        Map<String, String> script = (Map<String, String>) body.get("script");
+        String note = (String) body.get("note");
+        shortsService.updateScript(projectId, memberId, script, note);
         return ApiResponse.ok(null);
     }
 

@@ -144,14 +144,15 @@ public class ShortsServiceImpl implements ShortsService {
     // ── 대본 수정 ──────────────────────────────────────────────────
 
     @Override
-    public void updateScript(Long projectId, Long memberId, Map<String, String> script) {
+    public void updateScript(Long projectId, Long memberId, Map<String, String> script, String note) {
         getProject(projectId, memberId); // 소유권 확인
         try {
             // 기존 대본을 히스토리에 저장 (롤백 가능) — 테이블 없으면 warn만
             try {
                 ProjectDto current = shortsDao.getProjectById(projectId);
                 if (current.getScript() != null && !current.getScript().isEmpty()) {
-                    shortsDao.saveScriptHistory(projectId, memberId, current.getScript(), "자동 저장");
+                    String historyNote = (note != null && !note.isEmpty()) ? note : "자동 저장";
+                    shortsDao.saveScriptHistory(projectId, memberId, current.getScript(), historyNote);
                 }
             } catch (Exception histEx) {
                 log.warn("[updateScript] 히스토리 저장 실패 (계속 진행): {}", histEx.getMessage());
