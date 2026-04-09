@@ -3,12 +3,14 @@ package com.crown.billing.dao;
 import com.crown.billing.dto.BillingDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 @Mapper
+@Repository
 public interface BillingDao {
 
     // ── 구독 ──

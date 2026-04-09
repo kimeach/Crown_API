@@ -1,0 +1,35 @@
+package com.crown.billing.dao;
+
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+import java.util.Map;
+
+@Mapper
+public interface TokenDao {
+
+    // ── 지갑 ──
+    Map<String, Object> getWallet(@Param("memberId") Long memberId, @Param("ym") String ym);
+
+    void upsertWallet(Map<String, Object> params);
+
+    void addBalance(@Param("memberId") Long memberId, @Param("ym") String ym, @Param("amount") int amount);
+
+    void addUsed(@Param("memberId") Long memberId, @Param("ym") String ym, @Param("amount") int amount);
+
+    // ── 원장 ──
+    void insertLedger(Map<String, Object> params);
+
+    List<Map<String, Object>> getLedgerHistory(@Param("memberId") Long memberId, @Param("limit") int limit, @Param("offset") int offset);
+
+    int getLedgerCount(@Param("memberId") Long memberId);
+
+    // ── 플랜 설정 ──
+    Map<String, Object> getPlanConfig(@Param("planId") String planId);
+
+    List<Map<String, Object>> getAllPlanConfigs();
+
+    // ── 만료 처리 ──
+    List<Map<String, Object>> getExpiredWallets();
+}

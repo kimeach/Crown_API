@@ -1,5 +1,6 @@
 package com.crown.common.exception;
 
+import com.crown.billing.service.InsufficientTokenException;
 import com.crown.common.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleIllegalArgument(IllegalArgumentException e) {
+        return ApiResponse.fail(e.getMessage());
+    }
+
+    @ExceptionHandler(InsufficientTokenException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleInsufficientToken(InsufficientTokenException e) {
         return ApiResponse.fail(e.getMessage());
     }
 

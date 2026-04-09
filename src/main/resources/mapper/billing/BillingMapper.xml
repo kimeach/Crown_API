@@ -5,7 +5,7 @@
 
     <!-- ═══════ 구독 ═══════ -->
 
-    <select id="getSubscription" resultType="com.crown.billing.dto.BillingDto$SubscriptionResponse">
+    <select id="getSubscription" resultType="com.crown.billing.dto.BillingDto.SubscriptionResponse">
         SELECT s.id, s.member_id, s.plan, s.billing_cycle, s.status,
                s.started_at, s.next_billing_at, s.cancelled_at, s.expires_at,
                p.card_company, p.card_number_last4 AS card_last4
@@ -98,7 +98,7 @@
         WHERE order_id = #{orderId}
     </update>
 
-    <select id="getPaymentHistory" resultType="com.crown.billing.dto.BillingDto$PaymentResponse">
+    <select id="getPaymentHistory" resultType="com.crown.billing.dto.BillingDto.PaymentResponse">
         SELECT id, order_name, amount, status, method,
                card_number_last4 AS card_last4, approved_at, receipt_url
         FROM sm_payment

@@ -1,5 +1,6 @@
 package com.crown.shorts.serviceimpl;
 
+import com.crown.billing.service.TokenService;
 import com.crown.common.service.FcmService;
 import com.crown.member.service.MemberService;
 import com.crown.shorts.service.UsageLimitService;
@@ -36,6 +37,7 @@ public class ShortsServiceImpl implements ShortsService {
     private final FcmService fcmService;
     private final MemberService memberService;
     private final UsageLimitService usageLimitService;
+    private final TokenService tokenService;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
 
@@ -236,6 +238,9 @@ public class ShortsServiceImpl implements ShortsService {
         String plan = memberService.findById(memberId).getPlan();
         usageLimitService.checkAndRecord(memberId, plan, "RENDER");
 
+        // 토큰 차감 (영상 생성 1회 = 10 토큰)
+        tokenService.useTokens(memberId, 10, "영상 생성", projectId);
+
         JobDto job = shortsDao.createJob(projectId);
         shortsDao.updateProjectStatus(projectId, "generating");
 
@@ -337,6 +342,17 @@ public class ShortsServiceImpl implements ShortsService {
         log.error("[job {}] 렌더링 실패: {}", jobId, errorMessage);
         shortsDao.updateProjectStatus(projectId, "error");
         shortsDao.updateJobFinished(jobId, "error", errorMessage);
+
+        // 토큰 환불 (렌더링 실패 시 10토큰 반환)
+        try {
+            ProjectDto project = shortsDao.getProjectById(projectId);
+            if (project != null) {
+                tokenService.refundTokens(project.getMemberId(), 10, "영상 생성 실패 환불", projectId);
+            }
+        } catch (Exception e) {
+            log.warn("[onRenderError] 토큰 환불 실패 (무시): {}", e.getMessage());
+        }
+
         sendFcmToProjectOwner(projectId, "영상 생성 실패", "영상 생성 중 오류가 발생했습니다.");
     }
 

@@ -2,6 +2,7 @@ package com.crown.billing.controller;
 
 import com.crown.billing.dto.BillingDto;
 import com.crown.billing.service.BillingService;
+import com.crown.billing.service.TokenService;
 import com.crown.common.dto.ApiResponse;
 import com.crown.member.dto.MemberDto;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import java.util.Map;
 public class BillingController {
 
     private final BillingService billingService;
+    private final TokenService tokenService;
 
     /** 현재 구독 조회 */
     @GetMapping("/subscription")
@@ -88,5 +90,45 @@ public class BillingController {
         log.info("[Billing Webhook] eventType={}", event.getEventType());
         // TODO: 웹훅 시크릿 검증 + 이벤트 처리
         return ResponseEntity.ok("OK");
+    }
+
+    // ══════════════════════ 토큰 API ══════════════════════
+
+    /** 토큰 잔액 조회 */
+    @GetMapping("/tokens")
+    public ResponseEntity<?> getTokenBalance(@AuthenticationPrincipal MemberDto member) {
+        Map<String, Object> balance = tokenService.getBalance(member.getMemberId());
+        return ResponseEntity.ok(ApiResponse.ok(balance));
+    }
+
+    /** 토큰 사용 이력 조회 (페이지네이션) */
+    @GetMapping("/tokens/history")
+    public ResponseEntity<?> getTokenHistory(
+            @AuthenticationPrincipal MemberDto member,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<Map<String, Object>> history = tokenService.getHistory(member.getMemberId(), page, size);
+        int total = tokenService.getHistoryCount(member.getMemberId());
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "list", history,
+                "total", total,
+                "page", page,
+                "size", size
+        )));
+    }
+
+    /** 토큰 잔액 충분 여부 확인 */
+    @GetMapping("/tokens/check")
+    public ResponseEntity<?> checkTokens(
+            @AuthenticationPrincipal MemberDto member,
+            @RequestParam int amount) {
+        boolean enough = tokenService.hasEnoughTokens(member.getMemberId(), amount);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("enough", enough)));
+    }
+
+    /** 플랜 설정 목록 조회 (인증 불필요) */
+    @GetMapping("/plans")
+    public ResponseEntity<?> getPlans() {
+        return ResponseEntity.ok(ApiResponse.ok(tokenService.getAllPlanConfigs()));
     }
 }

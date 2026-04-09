@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crown.billing.dao.TokenDao">
+
+    <!-- ═══════ 지갑 ═══════ -->
+
+    <select id="getWallet" resultType="map">
+        SELECT id, member_id AS memberId, balance, granted_monthly AS grantedMonthly,
+               used_monthly AS usedMonthly, ym, expires_at AS expiresAt
+        FROM sm_token_wallet
+        WHERE member_id = #{memberId} AND ym = #{ym}
+    </select>
+
+    <insert id="upsertWallet" parameterType="map">
+        INSERT INTO sm_token_wallet (member_id, balance, granted_monthly, used_monthly, ym, expires_at)
+        VALUES (#{memberId}, #{balance}, #{grantedMonthly}, 0, #{ym}, #{expiresAt})
+        ON DUPLICATE KEY UPDATE
+            balance = #{balance},
+            granted_monthly = #{grantedMonthly},
+            expires_at = #{expiresAt},
+            updated_at = NOW()
+    </insert>
+
+    <update id="addBalance">
+        UPDATE sm_token_wallet
+        SET balance = balance + #{amount}, updated_at = NOW()
+        WHERE member_id = #{memberId} AND ym = #{ym}
+    </update>
+
+    <update id="addUsed">
+        UPDATE sm_token_wallet
+        SET used_monthly = used_monthly + #{amount},
+            balance = balance - #{amount},
+            updated_at = NOW()
+        WHERE member_id = #{memberId} AND ym = #{ym}
+    </update>
+
+    <!-- ═══════ 원장 ═══════ -->
+
+    <insert id="insertLedger" parameterType="map">
+        INSERT INTO sm_token_ledger (member_id, type, amount, balance_after, description, project_id, expires_at)
+        VALUES (#{memberId}, #{type}, #{amount}, #{balanceAfter}, #{description}, #{projectId}, #{expiresAt})
+    </insert>
+
+    <select id="getLedgerHistory" resultType="map">
+        SELECT id, type, amount, balance_after AS balanceAfter, description,
+               project_id AS projectId, expires_at AS expiresAt, created_at AS createdAt
+        FROM sm_token_ledger
+        WHERE member_id = #{memberId}
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="getLedgerCount" resultType="int">
+        SELECT COUNT(*) FROM sm_token_ledger WHERE member_id = #{memberId}
+    </select>
+
+    <!-- ═══════ 플랜 설정 ═══════ -->
+
+    <select id="getPlanConfig" resultType="map">
+        SELECT plan_id AS planId, category, name, monthly_price AS monthlyPrice,
+               yearly_price AS yearlyPrice, tokens_monthly AS tokensMonthly,
+               per_member AS perMember, min_members AS minMembers, max_members AS maxMembers,
+               collaboration, role_management AS roleManagement, comments,
+               approval_workflow AS approvalWorkflow, batch_automation AS batchAutomation,
+               priority_render AS priorityRender, api_access AS apiAccess,
+               watermark, white_label AS whiteLabel, invoice_support AS invoiceSupport,
+               max_video_quality AS maxVideoQuality, support_level AS supportLevel
+        FROM sm_plan_config
+        WHERE plan_id = #{planId} AND active = 1
+    </select>
+
+    <select id="getAllPlanConfigs" resultType="map">
+        SELECT plan_id AS planId, category, name, monthly_price AS monthlyPrice,
+               yearly_price AS yearlyPrice, tokens_monthly AS tokensMonthly,
+               per_member AS perMember, min_members AS minMembers, max_members AS maxMembers,
+               watermark, max_video_quality AS maxVideoQuality
+        FROM sm_plan_config
+        WHERE active = 1
+        ORDER BY id
+    </select>
+
+    <!-- ═══════ 만료 처리 ═══════ -->
+
+    <select id="getExpiredWallets" resultType="map">
+        SELECT id, member_id AS memberId, balance, ym, expires_at AS expiresAt
+        FROM sm_token_wallet
+        WHERE expires_at &lt;= NOW() AND balance > 0
+    </select>
+
+</mapper>

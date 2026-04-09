@@ -1,18 +1,22 @@
 package com.crown.member.serviceimpl;
 
+import com.crown.billing.service.TokenService;
 import com.crown.member.dao.MemberDao;
 import com.crown.member.dto.FirebaseAttributes;
 import com.crown.member.dto.MemberDto;
 import com.crown.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
 
     private final MemberDao memberDao;
+    private final TokenService tokenService;
 
     @Override
     public MemberDto saveOrUpdate(FirebaseAttributes attributes) {
@@ -27,6 +31,16 @@ public class MemberServiceImpl implements MemberService {
         }
         if (existing == null) {
             memberDao.insert(attributes);
+            // 신규 회원 — Free 플랜 초기 토큰 지급
+            MemberDto newMember = memberDao.findByGoogleId(attributes.getGoogleId());
+            if (newMember != null) {
+                try {
+                    tokenService.initFreeTokens(newMember.getMemberId());
+                } catch (Exception e) {
+                    log.warn("초기 토큰 지급 실패 (무시): {}", e.getMessage());
+                }
+            }
+            return newMember;
         } else {
             memberDao.updateProfile(attributes);
         }

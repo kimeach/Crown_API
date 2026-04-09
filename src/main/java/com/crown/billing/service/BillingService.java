@@ -20,6 +20,7 @@ public class BillingService {
 
     private final BillingDao billingDao;
     private final TossPaymentsClient tossClient;
+    private final TokenService tokenService;
 
     @Value("${toss.payments.client-key:}")
     private String clientKey;
@@ -148,6 +149,9 @@ public class BillingService {
         params.put("startedAt", now);
         params.put("nextBillingAt", nextBilling);
         billingDao.insertSubscription(params);
+
+        // 토큰 충전
+        tokenService.grantMonthlyTokens(memberId, plan);
 
         log.info("[Billing] 구독 활성화: memberId={}, plan={}, cycle={}", memberId, plan, billingCycle);
     }
