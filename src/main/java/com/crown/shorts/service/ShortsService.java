@@ -32,8 +32,11 @@ public interface ShortsService {
     /** 내 프로젝트 목록 조회 */
     List<ProjectDto> getMyProjects(Long memberId);
 
-    /** 프로젝트 상세 조회 */
+    /** 프로젝트 상세 조회 (소유자 또는 팀 멤버) */
     ProjectDto getProject(Long projectId, Long memberId);
+
+    /** 프로젝트에 대한 사용자 역할 조회 (owner/editor/viewer/none) */
+    String getProjectAccessRole(Long projectId, Long memberId);
 
     /** 에디터에서 수정한 대본 저장 (note: 히스토리 명칭) */
     void updateScript(Long projectId, Long memberId, Map<String, String> script, String note);

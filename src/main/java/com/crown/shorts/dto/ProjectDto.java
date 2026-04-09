@@ -19,4 +19,5 @@ public class ProjectDto {
     private String videoUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String accessRole;           // owner | editor | viewer (DB 미매핑, API 응답용)
 }

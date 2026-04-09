@@ -109,7 +109,9 @@ public class ShortsRestController {
             @AuthenticationPrincipal FirebaseToken token,
             @PathVariable Long projectId) {
         Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
-        return ApiResponse.ok(shortsService.getProject(projectId, memberId));
+        ProjectDto project = shortsService.getProject(projectId, memberId);
+        project.setAccessRole(shortsService.getProjectAccessRole(projectId, memberId));
+        return ApiResponse.ok(project);
     }
 
     /** HTML 수정 저장 */

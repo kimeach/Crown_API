@@ -127,4 +127,12 @@ public class ShortsDao {
     public void updateJobFinished(Long jobId, String status, String errorMessage) {
         shortsMapper.updateJobFinished(jobId, status, errorMessage);
     }
+
+    /**
+     * 프로젝트에 대한 사용자의 팀 역할 조회.
+     * @return "owner", "editor", "viewer" 또는 null(접근 불가)
+     */
+    public String getTeamRole(Long projectId, Long memberId) {
+        return shortsMapper.selectTeamRole(projectId, memberId);
+    }
 }

@@ -135,17 +135,38 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     public ProjectDto getProject(Long projectId, Long memberId) {
         ProjectDto project = shortsDao.getProjectById(projectId);
-        if (project == null || !project.getMemberId().equals(memberId)) {
+        if (project == null) {
             throw new IllegalArgumentException("프로젝트를 찾을 수 없습니다.");
         }
-        return project;
+        // 소유자이면 바로 반환
+        if (project.getMemberId().equals(memberId)) {
+            return project;
+        }
+        // 팀 멤버 접근 체크
+        String teamRole = shortsDao.getTeamRole(projectId, memberId);
+        if (teamRole != null) {
+            return project;
+        }
+        throw new IllegalArgumentException("프로젝트를 찾을 수 없습니다.");
+    }
+
+    @Override
+    public String getProjectAccessRole(Long projectId, Long memberId) {
+        ProjectDto project = shortsDao.getProjectById(projectId);
+        if (project == null) return "none";
+        if (project.getMemberId().equals(memberId)) return "owner";
+        String teamRole = shortsDao.getTeamRole(projectId, memberId);
+        return teamRole != null ? teamRole : "none";
     }
 
     // ── 대본 수정 ──────────────────────────────────────────────────
 
     @Override
     public void updateScript(Long projectId, Long memberId, Map<String, String> script, String note) {
-        getProject(projectId, memberId); // 소유권 확인
+        String role = getProjectAccessRole(projectId, memberId);
+        if ("none".equals(role) || "viewer".equals(role)) {
+            throw new IllegalArgumentException("수정 권한이 없습니다.");
+        }
         try {
             // 기존 대본을 히스토리에 저장 (롤백 가능) — 테이블 없으면 warn만
             try {

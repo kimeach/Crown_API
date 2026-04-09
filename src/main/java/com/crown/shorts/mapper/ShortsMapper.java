@@ -65,4 +65,8 @@ public interface ShortsMapper {
     void updateJobFinished(@Param("jobId") Long jobId,
                            @Param("status") String status,
                            @Param("errorMessage") String errorMessage);
+
+    // ── 팀 협업 접근 제어 ──
+    String selectTeamRole(@Param("projectId") Long projectId,
+                          @Param("memberId") Long memberId);
 }

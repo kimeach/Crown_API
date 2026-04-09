@@ -175,4 +175,16 @@
         WHERE job_id = #{jobId}
     </update>
 
+    <!-- 팀 협업: 프로젝트에 대한 사용자 역할 조회 (owner/editor/viewer/null) -->
+    <select id="selectTeamRole" resultType="String">
+        SELECT tm.role
+        FROM sm_team_project tp
+        JOIN sm_team_member tm ON tp.team_id = tm.team_id
+        WHERE tp.project_id = #{projectId}
+          AND tm.member_id  = #{memberId}
+          AND tm.status      = 'active'
+        ORDER BY FIELD(tm.role, 'owner', 'editor', 'viewer')
+        LIMIT 1
+    </select>
+
 </mapper>
