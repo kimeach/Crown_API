@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crown.billing.dao.BillingDao">
+
+    <!-- ═══════ 구독 ═══════ -->
+
+    <select id="getSubscription" resultType="com.crown.billing.dto.BillingDto$SubscriptionResponse">
+        SELECT s.id, s.member_id, s.plan, s.billing_cycle, s.status,
+               s.started_at, s.next_billing_at, s.cancelled_at, s.expires_at,
+               p.card_company, p.card_number_last4 AS card_last4
+        FROM sm_subscription s
+        LEFT JOIN (
+            SELECT member_id, card_company, card_number_last4
+            FROM sm_payment
+            WHERE status = 'done'
+            ORDER BY approved_at DESC LIMIT 1
+        ) p ON p.member_id = s.member_id
+        WHERE s.member_id = #{memberId}
+    </select>
+
+    <insert id="insertSubscription" parameterType="map">
+        INSERT INTO sm_subscription (member_id, plan, billing_cycle, status,
+                                     billing_key, customer_key, started_at, next_billing_at)
+        VALUES (#{memberId}, #{plan}, #{billingCycle}, #{status},
+                #{billingKey}, #{customerKey}, #{startedAt}, #{nextBillingAt})
+        ON DUPLICATE KEY UPDATE
+            plan = VALUES(plan),
+            billing_cycle = VALUES(billing_cycle),
+            status = VALUES(status),
+            billing_key = VALUES(billing_key),
+            customer_key = VALUES(customer_key),
+            started_at = VALUES(started_at),
+            next_billing_at = VALUES(next_billing_at),
+            cancelled_at = NULL,
+            expires_at = NULL
+    </insert>
+
+    <update id="updateSubscription" parameterType="map">
+        UPDATE sm_subscription
+        SET plan = #{plan}, billing_cycle = #{billingCycle},
+            status = #{status}, next_billing_at = #{nextBillingAt}
+        WHERE member_id = #{memberId}
+    </update>
+
+    <update id="cancelSubscription">
+        UPDATE sm_subscription
+        SET status = 'cancelled',
+            cancelled_at = NOW(),
+            cancel_reason = #{reason},
+            expires_at = #{expiresAt}
+        WHERE member_id = #{memberId} AND status = 'active'
+    </update>
+
+    <select id="getDueBillings" resultType="map">
+        SELECT member_id, plan, billing_cycle, billing_key, customer_key
+        FROM sm_subscription
+        WHERE status = 'active'
+          AND billing_key IS NOT NULL
+          AND next_billing_at &lt;= NOW()
+    </select>
+
+    <update id="updateNextBilling">
+        UPDATE sm_subscription
+        SET next_billing_at = #{nextBillingAt}
+        WHERE member_id = #{memberId}
+    </update>
+
+    <!-- ═══════ 결제 ═══════ -->
+
+    <insert id="insertPayment" parameterType="map">
+        INSERT INTO sm_payment (member_id, subscription_id, payment_key,
+                                order_id, order_name, amount, status,
+                                method, card_company, card_number_last4,
+                                receipt_url, requested_at, approved_at, raw_response)
+        VALUES (#{memberId}, #{subscriptionId}, #{paymentKey},
+                #{orderId}, #{orderName}, #{amount}, #{status},
+                #{method}, #{cardCompany}, #{cardLast4},
+                #{receiptUrl}, #{requestedAt}, #{approvedAt}, #{raw})
+    </insert>
+
+    <update id="updatePaymentStatus">
+        UPDATE sm_payment
+        SET status = #{status}, raw_response = #{raw}
+        WHERE order_id = #{orderId}
+    </update>
+
+    <update id="updatePaymentApproval" parameterType="map">
+        UPDATE sm_payment
+        SET status = 'done',
+            payment_key = #{paymentKey},
+            method = #{method},
+            card_company = #{cardCompany},
+            card_number_last4 = #{cardLast4},
+            receipt_url = #{receiptUrl},
+            approved_at = #{approvedAt},
+            raw_response = #{raw}
+        WHERE order_id = #{orderId}
+    </update>
+
+    <select id="getPaymentHistory" resultType="com.crown.billing.dto.BillingDto$PaymentResponse">
+        SELECT id, order_name, amount, status, method,
+               card_number_last4 AS card_last4, approved_at, receipt_url
+        FROM sm_payment
+        WHERE member_id = #{memberId}
+        ORDER BY created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="getPaymentByOrderId" resultType="map">
+        SELECT id, member_id, order_id, amount, status
+        FROM sm_payment
+        WHERE order_id = #{orderId}
+    </select>
+
+    <!-- ═══════ 사용량 ═══════ -->
+
+    <select id="getUsage" resultType="map">
+        SELECT shorts_count, longform_count, voice_clone_count, ai_rewrite_count
+        FROM sm_usage
+        WHERE member_id = #{memberId} AND year_month = #{yearMonth}
+    </select>
+
+    <insert id="upsertUsage" parameterType="map">
+        INSERT INTO sm_usage (member_id, year_month)
+        VALUES (#{memberId}, #{yearMonth})
+        ON DUPLICATE KEY UPDATE updated_at = NOW()
+    </insert>
+
+    <update id="incrementUsage">
+        INSERT INTO sm_usage (member_id, year_month, ${column})
+        VALUES (#{memberId}, #{yearMonth}, 1)
+        ON DUPLICATE KEY UPDATE ${column} = ${column} + 1
+    </update>
+
+</mapper>

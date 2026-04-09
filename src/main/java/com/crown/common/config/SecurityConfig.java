@@ -37,7 +37,8 @@ public class SecurityConfig {
                                  "/api/inquiry/guest",
                                  "/api/templates", "/api/templates/**",
                                  "/api/color-theme-templates", "/api/color-theme-templates/**",
-                                 "/api/shorts/bgm", "/api/shorts/bgm/**").permitAll()
+                                 "/api/shorts/bgm", "/api/shorts/bgm/**",
+                                 "/api/billing/webhook").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(firebaseTokenFilter, UsernamePasswordAuthenticationFilter.class);
