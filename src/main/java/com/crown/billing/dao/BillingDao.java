@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 @Mapper
-@Repository
 public interface BillingDao {
 
     // ── 구독 ──
