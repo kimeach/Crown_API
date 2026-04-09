@@ -945,7 +945,10 @@ public class ShortsServiceImpl implements ShortsService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
         try {
-            restTemplate.exchange(workerUrl + path, HttpMethod.valueOf(method), entity, String.class);
+            // secret 파라미터 추가 (기존 쿼리스트링 유무 판단)
+            String sep = path.contains("?") ? "&" : "?";
+            String url = workerUrl + path + sep + "secret=" + workerSecret;
+            restTemplate.exchange(url, HttpMethod.valueOf(method), entity, String.class);
         } catch (Exception e) {
             log.error("Python 워커 호출 실패 [{}{}]: {}", method, path, e.getMessage());
             throw new RuntimeException("영상 생성 서버에 연결할 수 없습니다.", e);
@@ -962,8 +965,11 @@ public class ShortsServiceImpl implements ShortsService {
             : new HttpEntity<>(headers);
 
         try {
+            // secret 파라미터 추가
+            String sep = path.contains("?") ? "&" : "?";
+            String url = workerUrl + path + sep + "secret=" + workerSecret;
             ResponseEntity<Map> response = restTemplate.exchange(
-                    workerUrl + path, HttpMethod.valueOf(method), entity, Map.class);
+                    url, HttpMethod.valueOf(method), entity, Map.class);
             return response.getBody() != null ? response.getBody() : new java.util.HashMap<>();
         } catch (Exception e) {
             log.error("Python 워커 호출 실패 [{}{}]: {}", method, path, e.getMessage());

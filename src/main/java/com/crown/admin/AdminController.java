@@ -502,7 +502,7 @@ public class AdminController {
      * 시스템 통합 상태 조회 (기존 /system 과 프론트엔드용 /system-status 통합)
      * GET /api/admin/system-status
      */
-    @GetMapping({"/system", "/system-status"})
+    @GetMapping("/system-status")
     public Map<String, Object> getSystemStatusNew() {
         return getSystemStatus(); // 기존 상세 로직 호출
     }
