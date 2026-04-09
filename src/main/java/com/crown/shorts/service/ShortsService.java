@@ -128,6 +128,9 @@ public interface ShortsService {
     Map<String, Object> toggleSchedule(Long scheduleId);
     List<Map<String, Object>> getScheduleLogs(Long scheduleId, int limit);
 
+    /** 영상 내보내기 (해상도 변환) */
+    Map<String, Object> exportVideo(Long projectId, Long memberId, String resolution);
+
     // ── 코멘트/피드백 ─────────────────────────────────────────────────
     List<Map<String, Object>> getComments(Long projectId);
     Map<String, Object> createComment(Long memberId, Map<String, Object> body);

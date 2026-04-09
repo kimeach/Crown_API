@@ -557,6 +557,18 @@ public class ShortsRestController {
         return ApiResponse.ok(shortsService.getScheduleLogs(id, Math.min(limit, 100)));
     }
 
+    // ── 영상 내보내기 (해상도 변환) ───────────────────────────────────
+
+    @PostMapping("/projects/{projectId}/export")
+    public ApiResponse<Map<String, Object>> exportVideo(
+            @AuthenticationPrincipal FirebaseToken token,
+            @PathVariable Long projectId,
+            @RequestBody Map<String, Object> body) {
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        String resolution = (String) body.getOrDefault("resolution", "1080x1920");
+        return ApiResponse.ok(shortsService.exportVideo(projectId, memberId, resolution));
+    }
+
     // ── 코멘트/피드백 ────────────────────────────────────────────────
 
     /** 프로젝트 코멘트 목록 */

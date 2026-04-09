@@ -250,9 +250,10 @@ public class ShortsServiceImpl implements ShortsService {
         body.put("html_url",     htmlUrl);
         body.put("script",       project.getScript());
         body.put("callback_url", callbackUrl);
-        if (renderOptions != null && !renderOptions.isEmpty()) {
-            body.put("render_options", renderOptions);
-        }
+        Map<String, Object> mergedOptions = new java.util.HashMap<>();
+        if (renderOptions != null) mergedOptions.putAll(renderOptions);
+        mergedOptions.put("plan", plan);
+        body.put("render_options", mergedOptions);
         callWorker("POST", "/render", body);
         shortsDao.updateJobStarted(job.getJobId());
         return job;
@@ -818,6 +819,33 @@ public class ShortsServiceImpl implements ShortsService {
         Map<String, Object> result = callWorkerJson("GET", "/schedule/" + scheduleId + "/logs?limit=" + limit, null);
         Object data = result.get("data");
         return data instanceof List ? (List<Map<String, Object>>) data : List.of();
+    }
+
+    // ── 영상 내보내기 (해상도 변환) ───────────────────────────────────
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> exportVideo(Long projectId, Long memberId, String resolution) {
+        ProjectDto project = getProject(projectId, memberId);
+        if (project.getVideoUrl() == null || project.getVideoUrl().isEmpty()) {
+            throw new RuntimeException("영상이 아직 생성되지 않았습니다.");
+        }
+
+        // Pro 이상 해상도 체크
+        String plan = memberService.findById(memberId).getPlan();
+        java.util.Set<String> proResolutions = java.util.Set.of("1440x2560", "2160x3840", "1080x1920:hq");
+        if (proResolutions.contains(resolution) && ("free".equals(plan) || plan == null)) {
+            throw new RuntimeException("Pro 플랜 이상에서 사용할 수 있는 해상도입니다.");
+        }
+
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("project_id", projectId);
+        body.put("video_url", project.getVideoUrl());
+        body.put("resolution", resolution);
+        body.put("plan", plan != null ? plan : "free");
+
+        Map<String, Object> result = callWorkerJson("POST", "/export/video", body);
+        return result;
     }
 
     // ── 코멘트/피드백 ─────────────────────────────────────────────────

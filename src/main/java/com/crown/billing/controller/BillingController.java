@@ -25,7 +25,7 @@ public class BillingController {
     @GetMapping("/subscription")
     public ResponseEntity<?> getSubscription(@AuthenticationPrincipal MemberDto member) {
         BillingDto.SubscriptionResponse sub = billingService.getSubscription(member.getMemberId());
-        return ResponseEntity.ok(ApiResponse.success(sub));
+        return ResponseEntity.ok(ApiResponse.ok(sub));
     }
 
     /** 주문 생성 (결제 전 — 프론트에서 토스 SDK 호출에 필요한 정보 반환) */
@@ -34,7 +34,7 @@ public class BillingController {
             @AuthenticationPrincipal MemberDto member,
             @RequestBody BillingDto.CheckoutRequest req) {
         BillingDto.CheckoutResponse res = billingService.createCheckout(member.getMemberId(), req);
-        return ResponseEntity.ok(ApiResponse.success(res));
+        return ResponseEntity.ok(ApiResponse.ok(res));
     }
 
     /** 결제 승인 (프론트에서 토스 인증 성공 후 호출) */
@@ -43,7 +43,7 @@ public class BillingController {
             @AuthenticationPrincipal MemberDto member,
             @RequestBody BillingDto.ConfirmRequest req) {
         Map<String, Object> result = billingService.confirmPayment(member.getMemberId(), req);
-        return ResponseEntity.ok(ApiResponse.success(result));
+        return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     /** 빌링키 발급 + 구독 시작 (정기결제용) */
@@ -55,7 +55,7 @@ public class BillingController {
         String plan = body.get("plan");
         String billingCycle = body.get("billingCycle");
         billingService.activateSubscription(member.getMemberId(), authKey, plan, billingCycle);
-        return ResponseEntity.ok(ApiResponse.success("구독이 시작되었습니다"));
+        return ResponseEntity.ok(ApiResponse.ok("구독이 시작되었습니다"));
     }
 
     /** 구독 해지 */
@@ -65,21 +65,21 @@ public class BillingController {
             @RequestBody(required = false) BillingDto.CancelRequest req) {
         String reason = req != null ? req.getReason() : null;
         billingService.cancelSubscription(member.getMemberId(), reason);
-        return ResponseEntity.ok(ApiResponse.success("구독이 해지되었습니다"));
+        return ResponseEntity.ok(ApiResponse.ok("구독이 해지되었습니다"));
     }
 
     /** 결제 내역 조회 */
     @GetMapping("/history")
     public ResponseEntity<?> getPaymentHistory(@AuthenticationPrincipal MemberDto member) {
         List<BillingDto.PaymentResponse> history = billingService.getPaymentHistory(member.getMemberId());
-        return ResponseEntity.ok(ApiResponse.success(history));
+        return ResponseEntity.ok(ApiResponse.ok(history));
     }
 
     /** 현재 사용량 조회 */
     @GetMapping("/usage")
     public ResponseEntity<?> getUsage(@AuthenticationPrincipal MemberDto member) {
         Map<String, Object> usage = billingService.getCurrentUsage(member.getMemberId());
-        return ResponseEntity.ok(ApiResponse.success(usage));
+        return ResponseEntity.ok(ApiResponse.ok(usage));
     }
 
     /** 토스페이먼츠 웹훅 (인증 불필요 — SecurityConfig에서 permitAll 처리) */
