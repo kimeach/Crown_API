@@ -61,3 +61,17 @@ toss:
 
 admin:
   emails: test@test.com
+
+# 신규 기능 추가 시 @Value 참조용 기본값
+instagram:
+  client-id: test-client-id
+  client-secret: test-client-secret
+  redirect-uri: http://localhost:3000/api/instagram/callback
+  app-id: test-app-id
+
+youtube:
+  api-key: test
+
+tiktok:
+  client-key: test
+  client-secret: test
