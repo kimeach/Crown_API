@@ -223,6 +223,10 @@ public class TokenService {
 
     // ── 기능별 토큰 차감 (sm_feature_cost 기반) ─────────────────────
 
+    public Map<String, Object> getFeatureCost(String featureKey) {
+        return tokenDao.getFeatureCost(featureKey);
+    }
+
     @Transactional
     public void useTokensForFeature(Long memberId, String featureKey, Long projectId) {
         Map<String, Object> feature = tokenDao.getFeatureCost(featureKey);

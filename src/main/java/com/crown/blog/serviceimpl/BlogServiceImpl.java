@@ -223,6 +223,14 @@ public class BlogServiceImpl implements BlogService {
         } catch (Exception e) {
             log.error("[Blog] 글 생성 요청 실패: postId={}, error={}", postId, e.getMessage());
             blogDao.updatePostStatus(postId, "error", "글 생성 요청 실패: " + e.getMessage());
+            // 토큰 환불
+            try {
+                Map<String, Object> fc = tokenService.getFeatureCost("blog_create");
+int refundAmount = fc != null ? ((Number) fc.get("tokenCost")).intValue() : 5;
+tokenService.refundTokens(memberId, refundAmount, "블로그 생성 실패 환불", null);
+            } catch (Exception re) {
+                log.warn("[Blog] 토큰 환불 실패: memberId={}, error={}", memberId, re.getMessage());
+            }
         }
     }
 
@@ -328,6 +336,17 @@ public class BlogServiceImpl implements BlogService {
     public void onGenerateError(Long postId, String errorMessage) {
         blogDao.updatePostStatus(postId, "error", errorMessage);
         log.error("[Blog] 글 생성 오류: postId={}, error={}", postId, errorMessage);
+        // 토큰 환불
+        try {
+            BlogPostDto post = blogDao.getPost(postId);
+            if (post != null && post.getMemberId() != null) {
+                Map<String, Object> fc2 = tokenService.getFeatureCost("blog_create");
+                int refundAmt = fc2 != null ? ((Number) fc2.get("tokenCost")).intValue() : 5;
+                tokenService.refundTokens(post.getMemberId(), refundAmt, "블로그 생성 오류 환불", null);
+            }
+        } catch (Exception e) {
+            log.warn("[Blog] 토큰 환불 실패: postId={}, error={}", postId, e.getMessage());
+        }
     }
 
     @Override
