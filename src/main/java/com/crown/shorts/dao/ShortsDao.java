@@ -128,6 +128,10 @@ public class ShortsDao {
         shortsMapper.updateJobFinished(jobId, status, errorMessage);
     }
 
+    public int countProjectsByMemberId(Long memberId) {
+        return shortsMapper.countProjectsByMemberId(memberId);
+    }
+
     /**
      * 프로젝트에 대한 사용자의 팀 역할 조회.
      * @return "owner", "editor", "viewer" 또는 null(접근 불가)

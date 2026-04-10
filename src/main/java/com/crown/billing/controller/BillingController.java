@@ -5,12 +5,14 @@ import com.crown.billing.service.BillingService;
 import com.crown.billing.service.TokenService;
 import com.crown.common.dto.ApiResponse;
 import com.crown.member.dto.MemberDto;
+import com.crown.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +24,7 @@ public class BillingController {
 
     private final BillingService billingService;
     private final TokenService tokenService;
+    private final MemberService memberService;
 
     /** 현재 구독 조회 */
     @GetMapping("/subscription")
@@ -92,6 +95,34 @@ public class BillingController {
         return ResponseEntity.ok("OK");
     }
 
+    // ══════════════════════ 토큰 패키지 API ══════════════════════
+
+    /** 토큰 패키지 목록 조회 (인증 불필요) */
+    @GetMapping("/token-packages")
+    public ResponseEntity<?> getTokenPackages() {
+        return ResponseEntity.ok(ApiResponse.ok(billingService.getTokenPackages()));
+    }
+
+    /** 토큰 구매 (선불 — 토스 결제 생성) */
+    @PostMapping("/token/purchase")
+    public ResponseEntity<?> purchaseTokens(
+            @AuthenticationPrincipal MemberDto member,
+            @RequestBody Map<String, Long> body) {
+        Long packageId = body.get("packageId");
+        if (packageId == null) {
+            throw new IllegalArgumentException("packageId는 필수입니다");
+        }
+        BillingDto.CheckoutResponse res = billingService.purchaseTokens(member.getMemberId(), packageId);
+        return ResponseEntity.ok(ApiResponse.ok(res));
+    }
+
+    /** 토큰 만료 임박 경고 조회 */
+    @GetMapping("/token/expiry-warning")
+    public ResponseEntity<?> getExpiryWarning(@AuthenticationPrincipal MemberDto member) {
+        Map<String, Object> warning = tokenService.getExpiryWarning(member.getMemberId());
+        return ResponseEntity.ok(ApiResponse.ok(warning));
+    }
+
     // ══════════════════════ 토큰 API ══════════════════════
 
     /** 토큰 잔액 조회 */
@@ -130,5 +161,42 @@ public class BillingController {
     @GetMapping("/plans")
     public ResponseEntity<?> getPlans() {
         return ResponseEntity.ok(ApiResponse.ok(tokenService.getAllPlanConfigs()));
+    }
+
+    // ══════════════════════ 플랜 제한 / 대시보드 API ══════════════════════
+
+    /** 현재 유저의 플랜 설정 전체 반환 */
+    @GetMapping("/plan-limits")
+    public ResponseEntity<?> getPlanLimits(@AuthenticationPrincipal MemberDto member) {
+        String plan = memberService.findById(member.getMemberId()).getPlan();
+        Map<String, Object> planConfig = tokenService.getPlanConfig(plan != null ? plan : "free");
+        if (planConfig == null) {
+            planConfig = Map.of("planId", plan != null ? plan : "free");
+        }
+        return ResponseEntity.ok(ApiResponse.ok(planConfig));
+    }
+
+    /** 토큰 잔액 + 사용량 + 플랜 정보 통합 대시보드 */
+    @GetMapping("/dashboard-summary")
+    public ResponseEntity<?> getDashboardSummary(@AuthenticationPrincipal MemberDto member) {
+        Long memberId = member.getMemberId();
+        String plan = memberService.findById(memberId).getPlan();
+
+        Map<String, Object> summary = new HashMap<>();
+
+        // 토큰 잔액
+        Map<String, Object> balance = tokenService.getBalance(memberId);
+        summary.put("tokens", balance);
+
+        // 사용량
+        Map<String, Object> usage = billingService.getCurrentUsage(memberId);
+        summary.put("usage", usage);
+
+        // 플랜 정보
+        Map<String, Object> planConfig = tokenService.getPlanConfig(plan != null ? plan : "free");
+        summary.put("plan", planConfig != null ? planConfig : Map.of("planId", plan != null ? plan : "free"));
+        summary.put("currentPlan", plan != null ? plan : "free");
+
+        return ResponseEntity.ok(ApiResponse.ok(summary));
     }
 }

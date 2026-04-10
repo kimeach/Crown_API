@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
@@ -28,9 +30,25 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InsufficientTokenException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleInsufficientToken(InsufficientTokenException e) {
-        return ApiResponse.fail(e.getMessage());
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleInsufficientToken(InsufficientTokenException e) {
+        Map<String, Object> data = Map.of(
+                "code", "INSUFFICIENT_TOKENS",
+                "required", e.getRequired(),
+                "balance", e.getBalance()
+        );
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
+                .body(new ApiResponse<>(false, e.getMessage(), data));
+    }
+
+    @ExceptionHandler(PlanFeatureBlockedException.class)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handlePlanFeatureBlocked(PlanFeatureBlockedException e) {
+        Map<String, Object> data = Map.of(
+                "code", "PLAN_UPGRADE_REQUIRED",
+                "currentPlan", e.getCurrentPlan(),
+                "requiredPlan", e.getRequiredPlan()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiResponse<>(false, e.getMessage(), data));
     }
 
     @ExceptionHandler(Exception.class)

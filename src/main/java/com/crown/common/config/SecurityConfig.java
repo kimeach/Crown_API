@@ -39,6 +39,7 @@ public class SecurityConfig {
                                  "/api/color-theme-templates", "/api/color-theme-templates/**",
                                  "/api/shorts/bgm", "/api/shorts/bgm/**",
                                  "/api/billing/webhook", "/api/billing/plans",
+                                 "/api/billing/token-packages",
                                  "/api/referral/validate/**").permitAll()
                 .anyRequest().authenticated()
             )

@@ -33,6 +33,14 @@ public interface TokenDao {
     // ── 기능별 토큰 비용 ──
     Map<String, Object> getFeatureCost(@Param("featureKey") String featureKey);
 
+    // ── 토큰 패키지 ──
+    List<Map<String, Object>> getTokenPackages();
+
+    Map<String, Object> getTokenPackageById(@Param("id") Long id);
+
+    // ── 만료 임박 조회 ──
+    Map<String, Object> getExpiringWallet(@Param("memberId") Long memberId);
+
     // ── 만료 처리 ──
     List<Map<String, Object>> getExpiredWallets();
 }

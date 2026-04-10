@@ -66,6 +66,9 @@ public interface ShortsMapper {
                            @Param("status") String status,
                            @Param("errorMessage") String errorMessage);
 
+    // ── 프로젝트 카운트 ──
+    int countProjectsByMemberId(@Param("memberId") Long memberId);
+
     // ── 팀 협업 접근 제어 ──
     String selectTeamRole(@Param("projectId") Long projectId,
                           @Param("memberId") Long memberId);

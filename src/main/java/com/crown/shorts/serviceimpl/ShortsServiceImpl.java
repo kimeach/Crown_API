@@ -1,6 +1,7 @@
 package com.crown.shorts.serviceimpl;
 
 import com.crown.billing.service.TokenService;
+import com.crown.common.exception.PlanFeatureBlockedException;
 import com.crown.common.service.FcmService;
 import com.crown.member.service.MemberService;
 import com.crown.shorts.service.UsageLimitService;
@@ -50,6 +51,39 @@ public class ShortsServiceImpl implements ShortsService {
     @Value("${app.base-url}")
     private String appBaseUrl;
 
+    // ── 플랜 기반 프로젝트 제한 체크 ────────────────────────────────
+
+    private void checkProjectLimit(Long memberId, String plan) {
+        Map<String, Object> planConfig = tokenService.getPlanConfig(plan != null ? plan : "free");
+        int maxProjects = -1; // 기본값: 무제한
+        if (planConfig != null && planConfig.containsKey("maxProjects")) {
+            Object val = planConfig.get("maxProjects");
+            if (val != null) {
+                maxProjects = ((Number) val).intValue();
+            }
+        }
+        // DB에 maxProjects 컬럼이 없으면 free 플랜은 3개 제한
+        if (maxProjects == -1 && "free".equals(plan)) {
+            maxProjects = 3;
+        }
+        if (maxProjects > 0) {
+            int currentCount = shortsDao.countProjectsByMemberId(memberId);
+            if (currentCount >= maxProjects) {
+                throw new PlanFeatureBlockedException(
+                        "무료 플랜에서는 프로젝트를 최대 " + maxProjects + "개까지 생성할 수 있습니다. 플랜을 업그레이드해주세요.",
+                        plan);
+            }
+        }
+    }
+
+    private void checkExportAllowed(String plan) {
+        if ("free".equals(plan)) {
+            throw new PlanFeatureBlockedException(
+                    "무료 플랜에서는 내보내기를 사용할 수 없습니다. 플랜을 업그레이드해주세요.",
+                    plan);
+        }
+    }
+
     // ── 프로젝트 생성 + 워커 호출 ──────────────────────────────────
 
     @Override
@@ -61,6 +95,7 @@ public class ShortsServiceImpl implements ShortsService {
     public ProjectDto createAndGenerate(Long memberId, String category, String templateId, Map<String, Object> options) {
         // 사용량 제한 체크 (free: 월 5회)
         String plan = memberService.findById(memberId).getPlan();
+        checkProjectLimit(memberId, plan);
         usageLimitService.checkAndRecord(memberId, plan, "GENERATE");
 
         ProjectDto project = shortsDao.createProject(memberId, category, templateId, options);
@@ -99,6 +134,9 @@ public class ShortsServiceImpl implements ShortsService {
 
     @Override
     public ProjectDto createBlank(Long memberId, String outputType) {
+        String plan = memberService.findById(memberId).getPlan();
+        checkProjectLimit(memberId, plan);
+
         Map<String, Object> options = new java.util.HashMap<>();
         options.put("output_type", outputType != null ? outputType : "video");
         return shortsDao.createProject(memberId, "blank", "dark_blue", options);
@@ -106,6 +144,11 @@ public class ShortsServiceImpl implements ShortsService {
 
     @Override
     public byte[] getTtsPreview(String text, String voice, String rate, String emotion) {
+        // 미리듣기는 무료이나, 남용 방지를 위해 100자(약 15~20초) 제한
+        if (text != null && text.length() > 100) {
+            text = text.substring(0, 100);
+        }
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Worker-Secret", workerSecret);
@@ -820,6 +863,8 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     @SuppressWarnings("unchecked")
     public String exportPdf(Long projectId, Long memberId) {
+        String plan = memberService.findById(memberId).getPlan();
+        checkExportAllowed(plan);
         tokenService.useTokensForFeature(memberId, "export_pdf", projectId);
         ProjectDto project = getProject(projectId, memberId);
         String htmlUrl = project.getHtmlUrl();
@@ -842,6 +887,8 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     @SuppressWarnings("unchecked")
     public String exportPptx(Long projectId, Long memberId) {
+        String plan = memberService.findById(memberId).getPlan();
+        checkExportAllowed(plan);
         tokenService.useTokensForFeature(memberId, "export_pptx", projectId);
         ProjectDto project = getProject(projectId, memberId);
         String htmlUrl = project.getHtmlUrl();

@@ -213,6 +213,49 @@ public class BillingService {
         return sub.getPlan();
     }
 
+    // ═══════ 토큰 패키지 구매 (선불) ═══════
+
+    public List<Map<String, Object>> getTokenPackages() {
+        return tokenService.getTokenPackages();
+    }
+
+    @Transactional
+    public BillingDto.CheckoutResponse purchaseTokens(Long memberId, Long packageId) {
+        Map<String, Object> pkg = tokenService.getTokenPackageById(packageId);
+        if (pkg == null) {
+            throw new IllegalArgumentException("토큰 패키지를 찾을 수 없습니다: " + packageId);
+        }
+
+        int amount = ((Number) pkg.get("price")).intValue();
+        int tokens = ((Number) pkg.get("tokens")).intValue();
+        String packageName = (String) pkg.get("name");
+
+        String orderId = "VLN-TKN-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+        String orderName = "Velona AI 토큰 " + packageName + " (" + tokens + "토큰)";
+        String customerKey = "cust_" + memberId;
+
+        // pending 상태로 결제 레코드 생성
+        Map<String, Object> params = new HashMap<>();
+        params.put("memberId", memberId);
+        params.put("paymentKey", "");
+        params.put("orderId", orderId);
+        params.put("orderName", orderName);
+        params.put("amount", amount);
+        params.put("status", "pending");
+        params.put("requestedAt", LocalDateTime.now());
+        billingDao.insertPayment(params);
+
+        BillingDto.CheckoutResponse res = new BillingDto.CheckoutResponse();
+        res.setOrderId(orderId);
+        res.setOrderName(orderName);
+        res.setAmount(amount);
+        res.setCustomerKey(customerKey);
+        res.setClientKey(clientKey);
+        res.setSuccessUrl(baseUrl + "/billing/token-success?packageId=" + packageId);
+        res.setFailUrl(baseUrl + "/billing/token-fail");
+        return res;
+    }
+
     // ═══════ 자동결제 처리 (스케줄러에서 호출) ═══════
 
     @Transactional

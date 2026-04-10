@@ -175,6 +175,11 @@
         WHERE job_id = #{jobId}
     </update>
 
+    <!-- 프로젝트 카운트 -->
+    <select id="countProjectsByMemberId" resultType="int">
+        SELECT COUNT(*) FROM sm_project WHERE member_id = #{memberId}
+    </select>
+
     <!-- 팀 협업: 프로젝트에 대한 사용자 역할 조회 (owner/editor/viewer/null) -->
     <select id="selectTeamRole" resultType="String">
         SELECT tm.role

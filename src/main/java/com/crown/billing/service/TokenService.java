@@ -49,8 +49,13 @@ public class TokenService {
         if (tokens <= 0) return;
 
         String ym = YearMonth.now().format(YM_FMT);
-        // 만료일: 다음 달 1일 자정
-        LocalDateTime expiresAt = YearMonth.now().plusMonths(1).atDay(1).atStartOfDay();
+        // 만료일: free 플랜은 1주일, 나머지는 다음 달 1일 자정
+        LocalDateTime expiresAt;
+        if ("free".equals(planId)) {
+            expiresAt = LocalDateTime.now().plusDays(7);
+        } else {
+            expiresAt = YearMonth.now().plusMonths(1).atDay(1).atStartOfDay();
+        }
 
         // 지갑 upsert
         Map<String, Object> walletParams = new HashMap<>();
@@ -82,7 +87,8 @@ public class TokenService {
 
         if (currentBalance < amount) {
             throw new InsufficientTokenException(
-                    "토큰이 부족합니다. (필요: " + amount + ", 잔여: " + currentBalance + ")");
+                    "토큰이 부족합니다. (필요: " + amount + ", 잔여: " + currentBalance + ")",
+                    amount, currentBalance);
         }
 
         // 차감
@@ -237,6 +243,30 @@ public class TokenService {
         int cost = ((Number) feature.get("tokenCost")).intValue();
         String name = (String) feature.get("name");
         useTokens(memberId, cost, name, projectId);
+    }
+
+    // ── 토큰 패키지 조회 ─────────────────────────────────────────────
+
+    public List<Map<String, Object>> getTokenPackages() {
+        return tokenDao.getTokenPackages();
+    }
+
+    public Map<String, Object> getTokenPackageById(Long id) {
+        return tokenDao.getTokenPackageById(id);
+    }
+
+    // ── 토큰 만료 임박 경고 ────────────────────────────────────────────
+
+    public Map<String, Object> getExpiryWarning(Long memberId) {
+        Map<String, Object> expiring = tokenDao.getExpiringWallet(memberId);
+        if (expiring == null) {
+            return Map.of("warning", false);
+        }
+        return Map.of(
+                "warning", true,
+                "expiresAt", expiring.get("expiresAt"),
+                "remainingTokens", expiring.get("balance")
+        );
     }
 
     // ── 내부 유틸 ───────────────────────────────────────────────────
