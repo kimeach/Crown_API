@@ -81,6 +81,14 @@
         ORDER BY id
     </select>
 
+    <!-- ═══════ 기능별 토큰 비용 ═══════ -->
+
+    <select id="getFeatureCost" resultType="map">
+        SELECT feature_key AS featureKey, name, token_cost AS tokenCost, category
+        FROM sm_feature_cost
+        WHERE feature_key = #{featureKey} AND is_active = 1
+    </select>
+
     <!-- ═══════ 만료 처리 ═══════ -->
 
     <select id="getExpiredWallets" resultType="map">

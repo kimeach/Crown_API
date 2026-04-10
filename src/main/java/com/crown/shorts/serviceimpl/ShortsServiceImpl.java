@@ -238,8 +238,8 @@ public class ShortsServiceImpl implements ShortsService {
         String plan = memberService.findById(memberId).getPlan();
         usageLimitService.checkAndRecord(memberId, plan, "RENDER");
 
-        // 토큰 차감 (영상 생성 1회 = 10 토큰)
-        tokenService.useTokens(memberId, 10, "영상 생성", projectId);
+        // 토큰 차감 (sm_feature_cost 기반)
+        tokenService.useTokensForFeature(memberId, "render", projectId);
 
         JobDto job = shortsDao.createJob(projectId);
         shortsDao.updateProjectStatus(projectId, "generating");
@@ -371,6 +371,7 @@ public class ShortsServiceImpl implements ShortsService {
 
     @Override
     public String rewriteScript(Long projectId, Long memberId, String text, String style, String instruction) {
+        tokenService.useTokensForFeature(memberId, "ai_rewrite", projectId);
         getProject(projectId, memberId);
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("text",        text);
@@ -383,6 +384,7 @@ public class ShortsServiceImpl implements ShortsService {
 
     @Override
     public String translateScript(Long projectId, Long memberId, String text, String targetLanguage) {
+        tokenService.useTokensForFeature(memberId, "translate", projectId);
         getProject(projectId, memberId);
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("text",            text);
@@ -555,6 +557,7 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     @SuppressWarnings("unchecked")
     public List<String> generateHashtags(Long projectId, Long memberId, String title, String script, int count) {
+        tokenService.useTokensForFeature(memberId, "hashtag", projectId);
         getProject(projectId, memberId);
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("title",  title  != null ? title  : "");
@@ -569,6 +572,7 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> generateSeo(Long projectId, Long memberId, String title, String script) {
+        tokenService.useTokensForFeature(memberId, "seo", projectId);
         getProject(projectId, memberId);
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("title",  title  != null ? title  : "");
@@ -582,6 +586,7 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> analyzeQuality(Long projectId, Long memberId, String script) {
+        tokenService.useTokensForFeature(memberId, "quality_analysis", projectId);
         getProject(projectId, memberId);
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("script", script != null ? script : "");
@@ -595,6 +600,7 @@ public class ShortsServiceImpl implements ShortsService {
 
     @Override
     public Map<String, Object> generateSubtitleFromScript(Long projectId, Long memberId, Map<String, String> script, String ttsRate) {
+        tokenService.useTokensForFeature(memberId, "subtitle_script", projectId);
         getProject(projectId, memberId);
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("project_id", projectId);
@@ -608,6 +614,7 @@ public class ShortsServiceImpl implements ShortsService {
 
     @Override
     public Map<String, Object> generateSubtitleFromVideo(Long projectId, Long memberId, String videoUrl, String language) {
+        tokenService.useTokensForFeature(memberId, "subtitle_video", projectId);
         getProject(projectId, memberId);
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("project_id", projectId);
@@ -620,6 +627,7 @@ public class ShortsServiceImpl implements ShortsService {
     }
 
     public Map<String, Object> translateSubtitle(Long projectId, Long memberId, String srt, String targetLanguage) {
+        tokenService.useTokensForFeature(memberId, "subtitle_translate", projectId);
         getProject(projectId, memberId);
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("project_id",       projectId);
@@ -739,6 +747,7 @@ public class ShortsServiceImpl implements ShortsService {
 
     @Override
     public void generatePptSlides(Long projectId, Long memberId, Map<String, Object> options) {
+        tokenService.useTokensForFeature(memberId, "ppt_generate", projectId);
         ProjectDto project = getProject(projectId, memberId);
         String callbackUrl = appBaseUrl + "/api/shorts/internal/generate-callback/" + projectId;
         Map<String, Object> body = new java.util.HashMap<>();
@@ -755,6 +764,7 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     @SuppressWarnings("unchecked")
     public String exportPdf(Long projectId, Long memberId) {
+        tokenService.useTokensForFeature(memberId, "export_pdf", projectId);
         ProjectDto project = getProject(projectId, memberId);
         String htmlUrl = project.getHtmlUrl();
         if (htmlUrl == null || htmlUrl.isBlank()) {
@@ -770,6 +780,7 @@ public class ShortsServiceImpl implements ShortsService {
     @Override
     @SuppressWarnings("unchecked")
     public String exportPptx(Long projectId, Long memberId) {
+        tokenService.useTokensForFeature(memberId, "export_pptx", projectId);
         ProjectDto project = getProject(projectId, memberId);
         String htmlUrl = project.getHtmlUrl();
         if (htmlUrl == null || htmlUrl.isBlank()) {

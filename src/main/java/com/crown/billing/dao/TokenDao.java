@@ -30,6 +30,9 @@ public interface TokenDao {
 
     List<Map<String, Object>> getAllPlanConfigs();
 
+    // ── 기능별 토큰 비용 ──
+    Map<String, Object> getFeatureCost(@Param("featureKey") String featureKey);
+
     // ── 만료 처리 ──
     List<Map<String, Object>> getExpiredWallets();
 }

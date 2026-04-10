@@ -5,9 +5,10 @@ import lombok.Getter;
 import java.util.Map;
 
 /**
- * 플랜별 사용량 한도 상수.
- * pricing.ts 와 동기화 필요.
+ * @deprecated sm_plan_config DB 테이블로 대체됨. TokenService.getPlanPrice(), getPlanOrderName() 사용.
+ * UsageLimitAspect에서 아직 참조 중이므로 완전 삭제는 보류.
  */
+@Deprecated
 public class PlanLimits {
 
     @Getter

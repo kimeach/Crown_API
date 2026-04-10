@@ -85,4 +85,24 @@
         LIMIT 20
     </select>
 
+    <update id="updateReferralCode">
+        UPDATE member
+        SET referral_code = #{referralCode}
+        WHERE member_id = #{memberId}
+    </update>
+
+    <select id="findByReferralCode" resultMap="memberResultMap">
+        SELECT member_id, google_id, nickname, email, profile_img, score,
+               win_count, lose_count, draw_count, plan
+        FROM member
+        WHERE referral_code = #{referralCode}
+        LIMIT 1
+    </select>
+
+    <select id="findReferralCodeByMemberId" resultType="String">
+        SELECT referral_code
+        FROM member
+        WHERE member_id = #{memberId}
+    </select>
+
 </mapper>

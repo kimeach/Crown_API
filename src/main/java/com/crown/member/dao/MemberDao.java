@@ -65,4 +65,16 @@ public class MemberDao {
     public List<MemberDto> searchByNickname(String nickname, Long excludeId) {
         return memberMapper.searchByNickname(nickname, excludeId);
     }
+
+    public void updateReferralCode(Long memberId, String referralCode) {
+        memberMapper.updateReferralCode(memberId, referralCode);
+    }
+
+    public MemberDto findByReferralCode(String referralCode) {
+        return memberMapper.findByReferralCode(referralCode);
+    }
+
+    public String findReferralCode(Long memberId) {
+        return memberMapper.findReferralCodeByMemberId(memberId);
+    }
 }

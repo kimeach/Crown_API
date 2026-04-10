@@ -199,6 +199,78 @@ public class TokenService {
         grantMonthlyTokens(memberId, "free");
     }
 
+    // ── 플랜 가격/이름 조회 (PlanLimits.java 대체) ─────────────────
+
+    public int getPlanPrice(String planId, String cycle) {
+        Map<String, Object> config = tokenDao.getPlanConfig(planId);
+        if (config == null) return 0;
+        if ("yearly".equals(cycle)) {
+            return ((Number) config.getOrDefault("yearlyPrice", 0)).intValue();
+        }
+        return ((Number) config.getOrDefault("monthlyPrice", 0)).intValue();
+    }
+
+    public String getPlanOrderName(String planId, String cycle) {
+        Map<String, Object> config = tokenDao.getPlanConfig(planId);
+        String name = config != null ? (String) config.get("name") : planId;
+        String cycleName = "yearly".equals(cycle) ? "연간" : "월간";
+        return "Velona AI " + name + " 플랜 " + cycleName + " 구독";
+    }
+
+    public List<Map<String, Object>> getAllPlans() {
+        return tokenDao.getAllPlanConfigs();
+    }
+
+    // ── 기능별 토큰 차감 (sm_feature_cost 기반) ─────────────────────
+
+    @Transactional
+    public void useTokensForFeature(Long memberId, String featureKey, Long projectId) {
+        Map<String, Object> feature = tokenDao.getFeatureCost(featureKey);
+        if (feature == null) {
+            log.warn("기능 비용 미설정: {}", featureKey);
+            return;
+        }
+        int cost = ((Number) feature.get("tokenCost")).intValue();
+        String name = (String) feature.get("name");
+        useTokens(memberId, cost, name, projectId);
+    }
+
+    // ── 토큰 환불 ──────────────────────────────────────────────────
+
+    @Transactional
+    public void refundTokens(Long memberId, int amount, String description) {
+        String ym = YearMonth.now().format(YM_FMT);
+        tokenDao.addBalance(memberId, ym, amount);
+        Map<String, Object> wallet = tokenDao.getWallet(memberId, ym);
+        int balanceAfter = wallet != null ? ((Number) wallet.get("balance")).intValue() : amount;
+        insertLedger(memberId, "refund", amount, balanceAfter, description, null, null);
+        log.info("토큰 환불: memberId={}, amount={}, reason={}", memberId, amount, description);
+    }
+
+    // ── 보너스 토큰 지급 (초대 보상 등) ─────────────────────────────
+
+    @Transactional
+    public void grantBonus(Long memberId, int amount, String description) {
+        String ym = YearMonth.now().format(YM_FMT);
+        LocalDateTime expiresAt = YearMonth.now().plusMonths(1).atDay(1).atStartOfDay();
+
+        Map<String, Object> walletParams = new HashMap<>();
+        walletParams.put("memberId", memberId);
+        walletParams.put("balance", amount);
+        walletParams.put("grantedMonthly", 0);
+        walletParams.put("ym", ym);
+        walletParams.put("expiresAt", expiresAt);
+        tokenDao.upsertWallet(walletParams);
+
+        // 기존 잔액에 추가
+        tokenDao.addBalance(memberId, ym, amount);
+
+        Map<String, Object> wallet = tokenDao.getWallet(memberId, ym);
+        int balanceAfter = wallet != null ? ((Number) wallet.get("balance")).intValue() : amount;
+        insertLedger(memberId, "bonus", amount, balanceAfter, description, null, expiresAt);
+        log.info("보너스 토큰: memberId={}, amount={}, reason={}", memberId, amount, description);
+    }
+
     // ── 내부 유틸 ───────────────────────────────────────────────────
 
     private void insertLedger(Long memberId, String type, int amount, int balanceAfter,

@@ -24,4 +24,11 @@ public interface MemberMapper {
     List<MemberDto> findRanking(@Param("limit") int limit);
     List<MemberDto> searchByNickname(@Param("nickname")   String nickname,
                                      @Param("excludeId") Long   excludeId);
+
+    void updateReferralCode(@Param("memberId") Long memberId,
+                            @Param("referralCode") String referralCode);
+
+    MemberDto findByReferralCode(@Param("referralCode") String referralCode);
+
+    String findReferralCodeByMemberId(@Param("memberId") Long memberId);
 }

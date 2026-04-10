@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.crown.instagram.mapper.InstagramMapper">
+
+    <insert id="insertOrUpdateAccount" parameterType="com.crown.instagram.dto.InstagramAccountDto">
+        INSERT INTO instagram_accounts (
+            member_id,
+            instagram_user_id,
+            username,
+            access_token,
+            token_type,
+            expires_in,
+            updated_at
+        ) VALUES (
+            #{memberId},
+            #{instagramUserId},
+            #{username},
+            #{accessToken},
+            #{tokenType},
+            #{expiresIn},
+            NOW()
+        )
+        ON DUPLICATE KEY UPDATE
+            instagram_user_id = VALUES(instagram_user_id),
+            username = VALUES(username),
+            access_token = VALUES(access_token),
+            token_type = VALUES(token_type),
+            expires_in = VALUES(expires_in),
+            updated_at = NOW()
+    </insert>
+
+    <select id="selectAccountByMemberId" resultType="com.crown.instagram.dto.InstagramAccountDto">
+        SELECT
+            id,
+            member_id AS memberId,
+            instagram_user_id AS instagramUserId,
+            username,
+            access_token AS accessToken,
+            token_type AS tokenType,
+            expires_in AS expiresIn,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+        FROM instagram_accounts
+        WHERE member_id = #{memberId}
+    </select>
+
+    <delete id="deleteAccountByMemberId">
+        DELETE FROM instagram_accounts
+        WHERE member_id = #{memberId}
+    </delete>
+
+</mapper>

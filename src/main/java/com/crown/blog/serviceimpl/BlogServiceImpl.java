@@ -4,6 +4,7 @@ import com.crown.blog.dao.BlogDao;
 import com.crown.blog.dto.BlogPostDto;
 import com.crown.blog.dto.BlogToneDto;
 import com.crown.blog.service.BlogService;
+import com.crown.billing.service.TokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ public class BlogServiceImpl implements BlogService {
     private final BlogDao blogDao;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final TokenService tokenService;
 
     @Value("${worker.url}")
     private String workerUrl;
@@ -159,6 +161,7 @@ public class BlogServiceImpl implements BlogService {
     @Override
     public BlogPostDto createPost(Long memberId, String subject, List<String> mediaUrls,
                                   String additionalInfo, String platform, String scheduledAt) {
+        tokenService.useTokensForFeature(memberId, "blog_create", null);
         BlogPostDto post = new BlogPostDto();
         post.setMemberId(memberId);
         post.setSubject(subject);

@@ -1,6 +1,5 @@
 package com.crown.billing.service;
 
-import com.crown.billing.constants.PlanLimits;
 import com.crown.billing.dao.BillingDao;
 import com.crown.billing.dto.BillingDto;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +20,7 @@ public class BillingService {
     private final BillingDao billingDao;
     private final TossPaymentsClient tossClient;
     private final TokenService tokenService;
+    private final ReferralService referralService;
 
     @Value("${toss.payments.client-key:}")
     private String clientKey;
@@ -46,14 +46,14 @@ public class BillingService {
     public BillingDto.CheckoutResponse createCheckout(Long memberId, BillingDto.CheckoutRequest req) {
         String plan = req.getPlan();
         String cycle = req.getBillingCycle();
-        int amount = PlanLimits.getPrice(plan, cycle);
+        int amount = tokenService.getPlanPrice(plan, cycle);
 
         if (amount <= 0) {
             throw new IllegalArgumentException("무료 플랜은 결제가 필요 없습니다");
         }
 
         String orderId = "VLN-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
-        String orderName = PlanLimits.getOrderName(plan, cycle);
+        String orderName = tokenService.getPlanOrderName(plan, cycle);
         String customerKey = "cust_" + memberId;
 
         // pending 상태로 결제 레코드 생성
@@ -153,6 +153,13 @@ public class BillingService {
         // 토큰 충전
         tokenService.grantMonthlyTokens(memberId, plan);
 
+        // 초대 코드로 가입한 회원이면 초대자에게 구독 보너스 지급
+        try {
+            referralService.processSubscriptionBonus(memberId, plan);
+        } catch (Exception e) {
+            log.warn("[Billing] 초대 구독 보너스 처리 실패: memberId={}, error={}", memberId, e.getMessage());
+        }
+
         log.info("[Billing] 구독 활성화: memberId={}, plan={}, cycle={}", memberId, plan, billingCycle);
     }
 
@@ -220,10 +227,10 @@ public class BillingService {
             String customerKey = (String) billing.get("customer_key");
 
             try {
-                int amount = PlanLimits.getPrice(plan, cycle);
+                int amount = tokenService.getPlanPrice(plan, cycle);
                 String orderId = "VLN-AUTO-" + UUID.randomUUID().toString()
                     .replace("-", "").substring(0, 12).toUpperCase();
-                String orderName = PlanLimits.getOrderName(plan, cycle);
+                String orderName = tokenService.getPlanOrderName(plan, cycle);
 
                 // 토스 빌링키 결제
                 Map<String, Object> result = tossClient.executeBilling(
@@ -249,7 +256,10 @@ public class BillingService {
                     ? LocalDateTime.now().plusYears(1) : LocalDateTime.now().plusMonths(1);
                 billingDao.updateNextBilling(memberId, nextBilling);
 
-                log.info("[Billing] 자동결제 성공: memberId={}, amount={}", memberId, amount);
+                // 월간 토큰 충전 (버그 수정: 자동결제 성공 후 토큰 미지급 문제)
+                tokenService.grantMonthlyTokens(memberId, plan);
+
+                log.info("[Billing] 자동결제 성공: memberId={}, amount={}, plan={}", memberId, amount, plan);
             } catch (Exception e) {
                 log.error("[Billing] 자동결제 실패: memberId={} — {}", memberId, e.getMessage());
                 // TODO: 재시도 로직, 실패 이메일 발송

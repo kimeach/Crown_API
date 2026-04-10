@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crown.billing.dao.ReferralDao">
+
+    <!-- ═══════ 초대 레코드 삽입 ═══════ -->
+
+    <insert id="insertReferral" parameterType="map">
+        INSERT INTO sm_referral (inviter_id, invitee_id, referral_code, status,
+                                  signup_bonus_given, sub_bonus_given, created_at)
+        VALUES (#{inviterId}, #{inviteeId}, #{referralCode}, #{status},
+                0, 0, NOW())
+    </insert>
+
+    <!-- ═══════ 코드로 초대 레코드 조회 ═══════ -->
+
+    <select id="getReferralByCode" resultType="map">
+        SELECT r.id, r.inviter_id, r.invitee_id, r.referral_code, r.status,
+               r.signup_bonus_given, r.sub_bonus_given, r.created_at,
+               m.nickname AS inviter_nickname, m.profile_img AS inviter_profile_img
+        FROM sm_referral r
+        JOIN member m ON m.member_id = r.inviter_id
+        WHERE r.referral_code = #{referralCode}
+        ORDER BY r.created_at DESC
+        LIMIT 1
+    </select>
+
+    <!-- ═══════ 초대자+피초대자 조합으로 조회 ═══════ -->
+
+    <select id="getByInviterAndInvitee" resultType="map">
+        SELECT r.id, r.inviter_id, r.invitee_id, r.referral_code, r.status,
+               r.signup_bonus_given, r.sub_bonus_given, r.created_at
+        FROM sm_referral r
+        WHERE r.inviter_id = #{inviterId}
+          AND r.invitee_id = #{inviteeId}
+    </select>
+
+    <!-- ═══════ 피초대자 ID로 조회 ═══════ -->
+
+    <select id="getReferralByInviteeId" resultType="map">
+        SELECT r.id, r.inviter_id, r.invitee_id, r.referral_code, r.status,
+               r.signup_bonus_given, r.sub_bonus_given, r.created_at
+        FROM sm_referral r
+        WHERE r.invitee_id = #{inviteeId}
+        LIMIT 1
+    </select>
+
+    <!-- ═══════ 상태 업데이트 ═══════ -->
+
+    <update id="updateStatus">
+        UPDATE sm_referral
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateSignupBonusGiven">
+        UPDATE sm_referral
+        SET signup_bonus_given = 1
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateSubBonusGiven">
+        UPDATE sm_referral
+        SET sub_bonus_given = 1
+        WHERE id = #{id}
+    </update>
+
+    <!-- ═══════ 보상 설정 조회 ═══════ -->
+
+    <select id="getRewardConfig" resultType="map">
+        SELECT event_type, plan_name, inviter_reward, invitee_reward
+        FROM sm_referral_reward
+        WHERE event_type = #{eventType}
+          AND plan_name = #{planName}
+    </select>
+
+    <!-- ═══════ 초대 통계 ═══════ -->
+
+    <select id="getStatsByInviter" resultType="map">
+        SELECT COUNT(*) AS total_invited,
+               SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_count,
+               SUM(CASE WHEN signup_bonus_given = 1 THEN 1 ELSE 0 END) AS signup_bonus_count,
+               SUM(CASE WHEN sub_bonus_given = 1 THEN 1 ELSE 0 END) AS sub_bonus_count
+        FROM sm_referral
+        WHERE inviter_id = #{inviterId}
+    </select>
+
+    <!-- ═══════ 초대 이력 (페이지네이션) ═══════ -->
+
+    <select id="getHistoryByInviter" resultType="map">
+        SELECT r.id, r.invitee_id, r.referral_code, r.status,
+               r.signup_bonus_given, r.sub_bonus_given, r.created_at,
+               m.nickname AS invitee_nickname, m.profile_img AS invitee_profile_img
+        FROM sm_referral r
+        JOIN member m ON m.member_id = r.invitee_id
+        WHERE r.inviter_id = #{inviterId}
+        ORDER BY r.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="getHistoryCountByInviter" resultType="int">
+        SELECT COUNT(*)
+        FROM sm_referral
+        WHERE inviter_id = #{inviterId}
+    </select>
+
+</mapper>
