@@ -338,7 +338,7 @@ tokenService.refundTokens(memberId, refundAmount, "블로그 생성 실패 환�
         log.error("[Blog] 글 생성 오류: postId={}, error={}", postId, errorMessage);
         // 토큰 환불
         try {
-            BlogPostDto post = blogDao.getPost(postId);
+            BlogPostDto post = blogDao.getPostById(postId);
             if (post != null && post.getMemberId() != null) {
                 Map<String, Object> fc2 = tokenService.getFeatureCost("blog_create");
                 int refundAmt = fc2 != null ? ((Number) fc2.get("tokenCost")).intValue() : 5;

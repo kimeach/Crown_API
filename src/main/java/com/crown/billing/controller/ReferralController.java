@@ -25,7 +25,7 @@ public class ReferralController {
         String code = referralService.generateCode(member.getMemberId());
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
             "code", code,
-            "ownerName", member.getDisplayName() != null ? member.getDisplayName() : "회원"
+            "ownerName", member.getNickname() != null ? member.getNickname() : "회원"
         )));
     }
 
