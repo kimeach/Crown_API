@@ -1,0 +1,63 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-h2.sql
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.crown.**.dto
+  type-handlers-package: com.crown.common.typehandler
+  configuration:
+    map-underscore-to-camel-case: true
+
+firebase:
+  enabled: false
+  credential:
+    path: NONE
+
+server:
+  port: 0
+
+worker:
+  url: http://localhost:9999
+  secret: test-secret
+
+app:
+  base-url: http://localhost:0
+
+slack:
+  support:
+    webhook:
+  ideas:
+    webhook:
+  errors:
+    webhook:
+  billing:
+    webhook:
+
+google:
+  sheets:
+    webhook: https://example.com
+    token: test
+
+gemini:
+  api-key: test
+
+grok:
+  api-key: test
+
+toss:
+  payments:
+    client-key: test_ck
+    secret-key: test_sk
+    api-url: https://example.com
+    webhook-secret: test
+
+admin:
+  emails: test@test.com
