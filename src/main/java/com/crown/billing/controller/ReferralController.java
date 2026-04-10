@@ -23,7 +23,10 @@ public class ReferralController {
     @GetMapping("/my-code")
     public ResponseEntity<?> getMyCode(@AuthenticationPrincipal MemberDto member) {
         String code = referralService.generateCode(member.getMemberId());
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("referralCode", code)));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+            "code", code,
+            "ownerName", member.getDisplayName() != null ? member.getDisplayName() : "회원"
+        )));
     }
 
     /** 초대 코드 유효성 검증 (인증 불필요) */

@@ -187,18 +187,20 @@ public class ReferralService {
     // ── 내 초대 통계 ───────────────────────────────────────────────────
 
     public Map<String, Object> getMyStats(Long memberId) {
-        Map<String, Object> stats = referralDao.getStatsByInviter(memberId);
-        if (stats == null) {
-            stats = new HashMap<>();
-            stats.put("total_invited", 0);
-            stats.put("completed_count", 0);
-            stats.put("signup_bonus_count", 0);
-            stats.put("sub_bonus_count", 0);
+        Map<String, Object> raw = referralDao.getStatsByInviter(memberId);
+        Map<String, Object> stats = new HashMap<>();
+        if (raw != null) {
+            stats.put("totalInvited", raw.getOrDefault("total_invited", 0));
+            stats.put("signedUp", raw.getOrDefault("completed_count", 0));
+            stats.put("subscribed", raw.getOrDefault("sub_bonus_count", 0));
+        } else {
+            stats.put("totalInvited", 0);
+            stats.put("signedUp", 0);
+            stats.put("subscribed", 0);
         }
 
-        // 내 초대 코드도 포함
         String code = memberDao.findReferralCode(memberId);
-        stats.put("referral_code", code);
+        stats.put("referralCode", code);
         return stats;
     }
 
@@ -210,8 +212,9 @@ public class ReferralService {
         int total = referralDao.getHistoryCountByInviter(memberId);
 
         Map<String, Object> result = new HashMap<>();
-        result.put("list", list);
-        result.put("total", total);
+        result.put("content", list);
+        result.put("totalPages", (int) Math.ceil((double) total / size));
+        result.put("totalElements", total);
         result.put("page", page);
         result.put("size", size);
         return result;

@@ -235,42 +235,6 @@ public class TokenService {
         useTokens(memberId, cost, name, projectId);
     }
 
-    // ── 토큰 환불 ──────────────────────────────────────────────────
-
-    @Transactional
-    public void refundTokens(Long memberId, int amount, String description) {
-        String ym = YearMonth.now().format(YM_FMT);
-        tokenDao.addBalance(memberId, ym, amount);
-        Map<String, Object> wallet = tokenDao.getWallet(memberId, ym);
-        int balanceAfter = wallet != null ? ((Number) wallet.get("balance")).intValue() : amount;
-        insertLedger(memberId, "refund", amount, balanceAfter, description, null, null);
-        log.info("토큰 환불: memberId={}, amount={}, reason={}", memberId, amount, description);
-    }
-
-    // ── 보너스 토큰 지급 (초대 보상 등) ─────────────────────────────
-
-    @Transactional
-    public void grantBonus(Long memberId, int amount, String description) {
-        String ym = YearMonth.now().format(YM_FMT);
-        LocalDateTime expiresAt = YearMonth.now().plusMonths(1).atDay(1).atStartOfDay();
-
-        Map<String, Object> walletParams = new HashMap<>();
-        walletParams.put("memberId", memberId);
-        walletParams.put("balance", amount);
-        walletParams.put("grantedMonthly", 0);
-        walletParams.put("ym", ym);
-        walletParams.put("expiresAt", expiresAt);
-        tokenDao.upsertWallet(walletParams);
-
-        // 기존 잔액에 추가
-        tokenDao.addBalance(memberId, ym, amount);
-
-        Map<String, Object> wallet = tokenDao.getWallet(memberId, ym);
-        int balanceAfter = wallet != null ? ((Number) wallet.get("balance")).intValue() : amount;
-        insertLedger(memberId, "bonus", amount, balanceAfter, description, null, expiresAt);
-        log.info("보너스 토큰: memberId={}, amount={}, reason={}", memberId, amount, description);
-    }
-
     // ── 내부 유틸 ───────────────────────────────────────────────────
 
     private void insertLedger(Long memberId, String type, int amount, int balanceAfter,
