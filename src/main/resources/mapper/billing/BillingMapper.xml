@@ -118,17 +118,17 @@
     <select id="getUsage" resultType="map">
         SELECT shorts_count, longform_count, voice_clone_count, ai_rewrite_count
         FROM sm_usage
-        WHERE member_id = #{memberId} AND year_month = #{yearMonth}
+        WHERE member_id = #{memberId} AND `year_month` = #{yearMonth}
     </select>
 
     <insert id="upsertUsage" parameterType="map">
-        INSERT INTO sm_usage (member_id, year_month)
+        INSERT INTO sm_usage (member_id, `year_month`)
         VALUES (#{memberId}, #{yearMonth})
         ON DUPLICATE KEY UPDATE updated_at = NOW()
     </insert>
 
     <update id="incrementUsage">
-        INSERT INTO sm_usage (member_id, year_month, ${column})
+        INSERT INTO sm_usage (member_id, `year_month`, ${column})
         VALUES (#{memberId}, #{yearMonth}, 1)
         ON DUPLICATE KEY UPDATE ${column} = ${column} + 1
     </update>

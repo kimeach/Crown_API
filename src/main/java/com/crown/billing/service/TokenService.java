@@ -259,14 +259,14 @@ public class TokenService {
 
     public Map<String, Object> getExpiryWarning(Long memberId) {
         Map<String, Object> expiring = tokenDao.getExpiringWallet(memberId);
-        if (expiring == null) {
+        if (expiring == null || expiring.isEmpty()) {
             return Map.of("warning", false);
         }
-        return Map.of(
-                "warning", true,
-                "expiresAt", expiring.get("expiresAt"),
-                "remainingTokens", expiring.get("balance")
-        );
+        Map<String, Object> result = new HashMap<>();
+        result.put("warning", true);
+        result.put("expiresAt", expiring.getOrDefault("expiresAt", expiring.get("expiresat")));
+        result.put("remainingTokens", expiring.getOrDefault("balance", expiring.get("BALANCE")));
+        return result;
     }
 
     // ── 내부 유틸 ───────────────────────────────────────────────────
