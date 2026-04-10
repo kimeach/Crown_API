@@ -322,6 +322,17 @@ public class ShortsServiceImpl implements ShortsService {
         sendFcmToProjectOwner(projectId, "생성 실패", "슬라이드 생성 중 오류가 발생했습니다.");
     }
 
+    /** 공통 토큰 환불 유틸 */
+    private void refundFeatureTokens(Long memberId, String featureKey, Long projectId, String reason, int fallbackCost) {
+        try {
+            Map<String, Object> fc = tokenService.getFeatureCost(featureKey);
+            int refundAmount = fc != null ? ((Number) fc.get("tokenCost")).intValue() : fallbackCost;
+            tokenService.refundTokens(memberId, refundAmount, reason, projectId);
+        } catch (Exception re) {
+            log.warn("토큰 환불 실패 [{}]: memberId={}, error={}", featureKey, memberId, re.getMessage());
+        }
+    }
+
     @Override
     public void onRenderDone(Long jobId, Long projectId, String videoUrl, String thumbnailUrl) {
         shortsDao.updateProjectVideo(projectId, videoUrl, "done");
@@ -343,11 +354,11 @@ public class ShortsServiceImpl implements ShortsService {
         shortsDao.updateProjectStatus(projectId, "error");
         shortsDao.updateJobFinished(jobId, "error", errorMessage);
 
-        // 토큰 환불 (렌더링 실패 시 10토큰 반환)
+        // 토큰 환불
         try {
             ProjectDto project = shortsDao.getProjectById(projectId);
             if (project != null) {
-                tokenService.refundTokens(project.getMemberId(), 10, "영상 생성 실패 환불", projectId);
+                refundFeatureTokens(project.getMemberId(), "render", projectId, "영상 생성 실패 환불", 10);
             }
         } catch (Exception e) {
             log.warn("[onRenderError] 토큰 환불 실패 (무시): {}", e.getMessage());
@@ -373,25 +384,35 @@ public class ShortsServiceImpl implements ShortsService {
     public String rewriteScript(Long projectId, Long memberId, String text, String style, String instruction) {
         tokenService.useTokensForFeature(memberId, "ai_rewrite", projectId);
         getProject(projectId, memberId);
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("text",        text);
-        body.put("style",       style != null ? style : "news");
-        body.put("instruction", instruction != null ? instruction : "");
-        Map<String, Object> res = callWorkerJson("POST", "/ai/rewrite", body);
-        Object data = res.get("data");
-        return data != null ? data.toString() : "";
+        try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("text",        text);
+            body.put("style",       style != null ? style : "news");
+            body.put("instruction", instruction != null ? instruction : "");
+            Map<String, Object> res = callWorkerJson("POST", "/ai/rewrite", body);
+            Object data = res.get("data");
+            return data != null ? data.toString() : "";
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "ai_rewrite", projectId, "AI 재작성 실패 환불", 3);
+            throw e;
+        }
     }
 
     @Override
     public String translateScript(Long projectId, Long memberId, String text, String targetLanguage) {
         tokenService.useTokensForFeature(memberId, "translate", projectId);
         getProject(projectId, memberId);
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("text",            text);
-        body.put("target_language", targetLanguage != null ? targetLanguage : "en");
-        Map<String, Object> res = callWorkerJson("POST", "/ai/translate", body);
-        Object data = res.get("data");
-        return data != null ? data.toString() : "";
+        try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("text",            text);
+            body.put("target_language", targetLanguage != null ? targetLanguage : "en");
+            Map<String, Object> res = callWorkerJson("POST", "/ai/translate", body);
+            Object data = res.get("data");
+            return data != null ? data.toString() : "";
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "translate", projectId, "번역 실패 환불", 3);
+            throw e;
+        }
     }
 
     // ── 트렌딩 토픽 ────────────────────────────────────────────────────
@@ -559,14 +580,19 @@ public class ShortsServiceImpl implements ShortsService {
     public List<String> generateHashtags(Long projectId, Long memberId, String title, String script, int count) {
         tokenService.useTokensForFeature(memberId, "hashtag", projectId);
         getProject(projectId, memberId);
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("title",  title  != null ? title  : "");
-        body.put("script", script != null ? script : "");
-        body.put("count",  count > 0 ? count : 15);
-        Map<String, Object> res = callWorkerJson("POST", "/ai/hashtags", body);
-        Object data = res.get("data");
-        if (data instanceof List) return (List<String>) data;
-        return new java.util.ArrayList<>();
+        try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("title",  title  != null ? title  : "");
+            body.put("script", script != null ? script : "");
+            body.put("count",  count > 0 ? count : 15);
+            Map<String, Object> res = callWorkerJson("POST", "/ai/hashtags", body);
+            Object data = res.get("data");
+            if (data instanceof List) return (List<String>) data;
+            return new java.util.ArrayList<>();
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "hashtag", projectId, "해시태그 생성 실패 환불", 2);
+            throw e;
+        }
     }
 
     @Override
@@ -574,13 +600,18 @@ public class ShortsServiceImpl implements ShortsService {
     public Map<String, Object> generateSeo(Long projectId, Long memberId, String title, String script) {
         tokenService.useTokensForFeature(memberId, "seo", projectId);
         getProject(projectId, memberId);
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("title",  title  != null ? title  : "");
-        body.put("script", script != null ? script : "");
-        Map<String, Object> res = callWorkerJson("POST", "/ai/seo", body);
-        Object data = res.get("data");
-        if (data instanceof Map) return (Map<String, Object>) data;
-        return new java.util.HashMap<>();
+        try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("title",  title  != null ? title  : "");
+            body.put("script", script != null ? script : "");
+            Map<String, Object> res = callWorkerJson("POST", "/ai/seo", body);
+            Object data = res.get("data");
+            if (data instanceof Map) return (Map<String, Object>) data;
+            return new java.util.HashMap<>();
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "seo", projectId, "SEO 생성 실패 환불", 3);
+            throw e;
+        }
     }
 
     @Override
@@ -588,12 +619,17 @@ public class ShortsServiceImpl implements ShortsService {
     public Map<String, Object> analyzeQuality(Long projectId, Long memberId, String script) {
         tokenService.useTokensForFeature(memberId, "quality_analysis", projectId);
         getProject(projectId, memberId);
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("script", script != null ? script : "");
-        Map<String, Object> res = callWorkerJson("POST", "/ai/quality", body);
-        Object data = res.get("data");
-        if (data instanceof Map) return (Map<String, Object>) data;
-        return new java.util.HashMap<>();
+        try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("script", script != null ? script : "");
+            Map<String, Object> res = callWorkerJson("POST", "/ai/quality", body);
+            Object data = res.get("data");
+            if (data instanceof Map) return (Map<String, Object>) data;
+            return new java.util.HashMap<>();
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "quality_analysis", projectId, "품질 분석 실패 환불", 3);
+            throw e;
+        }
     }
 
     // ── 자막 생성 ───────────────────────────────────────────────────
@@ -602,41 +638,56 @@ public class ShortsServiceImpl implements ShortsService {
     public Map<String, Object> generateSubtitleFromScript(Long projectId, Long memberId, Map<String, String> script, String ttsRate) {
         tokenService.useTokensForFeature(memberId, "subtitle_script", projectId);
         getProject(projectId, memberId);
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("project_id", projectId);
-        body.put("script",     script);
-        body.put("tts_rate",   ttsRate != null ? ttsRate : "+25%");
-        Map<String, Object> res = callWorkerJson("POST", "/subtitle/from-script", body);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) res.get("data");
-        return data != null ? data : new java.util.HashMap<>();
+        try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("project_id", projectId);
+            body.put("script",     script);
+            body.put("tts_rate",   ttsRate != null ? ttsRate : "+25%");
+            Map<String, Object> res = callWorkerJson("POST", "/subtitle/from-script", body);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) res.get("data");
+            return data != null ? data : new java.util.HashMap<>();
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "subtitle_script", projectId, "자막 생성 실패 환불", 3);
+            throw e;
+        }
     }
 
     @Override
     public Map<String, Object> generateSubtitleFromVideo(Long projectId, Long memberId, String videoUrl, String language) {
         tokenService.useTokensForFeature(memberId, "subtitle_video", projectId);
         getProject(projectId, memberId);
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("project_id", projectId);
-        body.put("video_url",  videoUrl);
-        body.put("language",   language != null ? language : "ko");
-        Map<String, Object> res = callWorkerJson("POST", "/subtitle/from-video", body);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) res.get("data");
-        return data != null ? data : new java.util.HashMap<>();
+        try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("project_id", projectId);
+            body.put("video_url",  videoUrl);
+            body.put("language",   language != null ? language : "ko");
+            Map<String, Object> res = callWorkerJson("POST", "/subtitle/from-video", body);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) res.get("data");
+            return data != null ? data : new java.util.HashMap<>();
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "subtitle_video", projectId, "영상 자막 생성 실패 환불", 5);
+            throw e;
+        }
     }
 
     public Map<String, Object> translateSubtitle(Long projectId, Long memberId, String srt, String targetLanguage) {
         tokenService.useTokensForFeature(memberId, "subtitle_translate", projectId);
         getProject(projectId, memberId);
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("project_id",       projectId);
-        body.put("srt",              srt);
-        body.put("target_language",  targetLanguage != null ? targetLanguage : "en");
-        Map<String, Object> res = callWorkerJson("POST", "/subtitle/translate", body);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) res.get("data");
-        return data != null ? data : new java.util.HashMap<>();
+        try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("project_id",       projectId);
+            body.put("srt",              srt);
+            body.put("target_language",  targetLanguage != null ? targetLanguage : "en");
+            Map<String, Object> res = callWorkerJson("POST", "/subtitle/translate", body);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) res.get("data");
+            return data != null ? data : new java.util.HashMap<>();
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "subtitle_translate", projectId, "자막 번역 실패 환불", 3);
+            throw e;
+        }
     }
 
     // ── 목소리 복제 ─────────────────────────────────────────────────
@@ -749,14 +800,19 @@ public class ShortsServiceImpl implements ShortsService {
     public void generatePptSlides(Long projectId, Long memberId, Map<String, Object> options) {
         tokenService.useTokensForFeature(memberId, "ppt_generate", projectId);
         ProjectDto project = getProject(projectId, memberId);
-        String callbackUrl = appBaseUrl + "/api/shorts/internal/generate-callback/" + projectId;
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("project_id",   projectId);
-        body.put("callback_url", callbackUrl);
-        body.put("template_id",  options != null ? options.getOrDefault("templateId", "dark_blue") : "dark_blue");
-        if (options != null) body.put("options", options);
-        callWorker("POST", "/generate/ppt", body);
-        shortsDao.updateProjectStatus(projectId, "generating");
+        try {
+            String callbackUrl = appBaseUrl + "/api/shorts/internal/generate-callback/" + projectId;
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("project_id",   projectId);
+            body.put("callback_url", callbackUrl);
+            body.put("template_id",  options != null ? options.getOrDefault("templateId", "dark_blue") : "dark_blue");
+            if (options != null) body.put("options", options);
+            callWorker("POST", "/generate/ppt", body);
+            shortsDao.updateProjectStatus(projectId, "generating");
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "ppt_generate", projectId, "PPT 생성 실패 환불", 5);
+            throw e;
+        }
     }
 
     // ── PDF / PPTX 내보내기 ────────────────────────────────────────
@@ -768,13 +824,19 @@ public class ShortsServiceImpl implements ShortsService {
         ProjectDto project = getProject(projectId, memberId);
         String htmlUrl = project.getHtmlUrl();
         if (htmlUrl == null || htmlUrl.isBlank()) {
+            refundFeatureTokens(memberId, "export_pdf", projectId, "PDF 내보내기 실패 환불 (HTML 없음)", 3);
             throw new RuntimeException("HTML이 없습니다. 먼저 슬라이드를 저장해주세요.");
         }
-        Map<String, Object> body = Map.of("project_id", projectId, "html_url", htmlUrl);
-        Map<String, Object> res = callWorkerJson("POST", "/export/pdf", body);
-        Object url = res.get("url");
-        if (url == null) throw new RuntimeException("PDF 내보내기 실패");
-        return url.toString();
+        try {
+            Map<String, Object> body = Map.of("project_id", projectId, "html_url", htmlUrl);
+            Map<String, Object> res = callWorkerJson("POST", "/export/pdf", body);
+            Object url = res.get("url");
+            if (url == null) throw new RuntimeException("PDF 내보내기 실패");
+            return url.toString();
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "export_pdf", projectId, "PDF 내보내기 실패 환불", 3);
+            throw e;
+        }
     }
 
     @Override
@@ -784,13 +846,19 @@ public class ShortsServiceImpl implements ShortsService {
         ProjectDto project = getProject(projectId, memberId);
         String htmlUrl = project.getHtmlUrl();
         if (htmlUrl == null || htmlUrl.isBlank()) {
+            refundFeatureTokens(memberId, "export_pptx", projectId, "PPTX 내보내기 실패 환불 (HTML 없음)", 3);
             throw new RuntimeException("HTML이 없습니다. 먼저 슬라이드를 저장해주세요.");
         }
-        Map<String, Object> body = Map.of("project_id", projectId, "html_url", htmlUrl);
-        Map<String, Object> res = callWorkerJson("POST", "/export/pptx", body);
-        Object url = res.get("url");
-        if (url == null) throw new RuntimeException("PPTX 내보내기 실패");
-        return url.toString();
+        try {
+            Map<String, Object> body = Map.of("project_id", projectId, "html_url", htmlUrl);
+            Map<String, Object> res = callWorkerJson("POST", "/export/pptx", body);
+            Object url = res.get("url");
+            if (url == null) throw new RuntimeException("PPTX 내보내기 실패");
+            return url.toString();
+        } catch (Exception e) {
+            refundFeatureTokens(memberId, "export_pptx", projectId, "PPTX 내보내기 실패 환불", 3);
+            throw e;
+        }
     }
 
     // ── 배치 스케줄 ──────────────────────────────────────────────────

@@ -2,6 +2,7 @@ package com.crown.blog.restcontroller;
 
 import com.crown.blog.dto.BlogPostDto;
 import com.crown.blog.dto.BlogToneDto;
+import com.crown.billing.service.TokenService;
 import com.crown.blog.service.BlogService;
 import com.crown.common.dto.ApiResponse;
 import com.crown.member.service.MemberService;
@@ -20,6 +21,7 @@ public class BlogRestController {
 
     private final BlogService blogService;
     private final MemberService memberService;
+    private final TokenService tokenService;
 
     private Long getMemberId(FirebaseToken token) {
         return memberService.findByGoogleId(token.getUid()).getMemberId();
@@ -33,7 +35,8 @@ public class BlogRestController {
     public ApiResponse<Map<String, Object>> analyzeTone(
             @AuthenticationPrincipal FirebaseToken token,
             @RequestBody Map<String, String> body) {
-        getMemberId(token); // 인증 확인
+        Long memberId = getMemberId(token);
+        tokenService.useTokensForFeature(memberId, "tone_analyze", null);
         String sampleText = body.get("sample_text");
         String quickTone = body.get("quick_tone");
         Map<String, Object> result = blogService.analyzeTone(sampleText, quickTone);
@@ -65,6 +68,7 @@ public class BlogRestController {
             @AuthenticationPrincipal FirebaseToken token,
             @RequestBody Map<String, String> body) {
         Long memberId = getMemberId(token);
+        tokenService.useTokensForFeature(memberId, "tone_analyze", null);
         String sampleText = body.get("sample_text");
         String quickTone = body.get("quick_tone");
         Map<String, Object> result = blogService.analyzeTone(sampleText, quickTone);

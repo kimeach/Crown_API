@@ -7,6 +7,7 @@ import com.crown.shorts.dto.ProjectDto;
 import com.crown.shorts.dto.QuestionDto;
 import com.crown.shorts.dto.SfxItemDto;
 import com.crown.shorts.service.ProgressService;
+import com.crown.billing.service.TokenService;
 import com.crown.shorts.service.ShortsService;
 import com.crown.shorts.service.UsageLimitService;
 import com.google.firebase.auth.FirebaseToken;
@@ -33,6 +34,7 @@ public class ShortsRestController {
     private final MemberService memberService;
     private final ProgressService progressService;
     private final UsageLimitService usageLimitService;
+    private final TokenService tokenService;
 
     /** 카테고리별 설문 질문 조회 */
     @GetMapping("/questions")
@@ -362,8 +364,21 @@ public class ShortsRestController {
             @RequestParam("name") String name,
             @RequestParam(value = "description", defaultValue = "") String description,
             @RequestParam("sample") MultipartFile sample) throws IOException {
-        return ApiResponse.ok(shortsService.cloneVoice(
-                name, description, sample.getBytes(), sample.getOriginalFilename()));
+        Long memberId = memberService.findByGoogleId(token.getUid()).getMemberId();
+        tokenService.useTokensForFeature(memberId, "voice_clone", null);
+        try {
+            return ApiResponse.ok(shortsService.cloneVoice(
+                    name, description, sample.getBytes(), sample.getOriginalFilename()));
+        } catch (Exception e) {
+            try {
+                Map<String, Object> fc = tokenService.getFeatureCost("voice_clone");
+                int refundAmount = fc != null ? ((Number) fc.get("tokenCost")).intValue() : 5;
+                tokenService.refundTokens(memberId, refundAmount, "목소리 복제 실패 환불", null);
+            } catch (Exception re) {
+                // 환불 실패 무시
+            }
+            throw e;
+        }
     }
 
     /** 사용 가능한 목소리 목록 */
